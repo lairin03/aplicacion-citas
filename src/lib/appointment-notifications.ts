@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { es } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function escapeHtml(value: string) {
@@ -109,32 +110,35 @@ export async function sendAppointmentApprovalEmail(input: {
   }
 }
 
-type WhatsAppApiResponse = { messages?: Array<{ id?: string }>; error?: { message?: string } };
+const whapiResponseSchema = z.object({
+  sent: z.boolean().optional(),
+  message: z.object({ id: z.string().optional() }).optional(),
+  error: z.object({ message: z.string().optional() }).optional(),
+});
 
-export async function sendAppointmentConfirmationWhatsApp(input: {
+export async function sendAppointmentDecisionWhatsApp(input: {
   appointmentId: string;
   customerPhone: string;
   customerName: string;
   businessName: string;
   staffName: string;
+  serviceNames: string[];
   startsAt: string;
   timezone: string;
+  decision: "confirmada" | "cancelada";
 }) {
   const admin = createAdminClient();
   const attempts = await admin.from("appointment_whatsapp_deliveries")
     .select("attempts").eq("appointment_id", input.appointmentId).maybeSingle();
   if (attempts.error) throw new Error("No se pudo consultar el estado del WhatsApp.");
   const nextAttempt = (attempts.data?.attempts ?? 0) + 1;
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const templateName = process.env.WHATSAPP_CONFIRMATION_TEMPLATE;
-  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? "es";
-  const graphVersion = process.env.WHATSAPP_GRAPH_API_VERSION;
+  const apiUrl = process.env.WHAPI_API_URL;
+  const accessToken = process.env.WHAPI_TOKEN;
   let messageId: string | null = null;
   let deliveryError: string | null = null;
 
-  if (!accessToken || !phoneNumberId || !templateName || !graphVersion) {
-    deliveryError = "Faltan credenciales o plantilla aprobada de WhatsApp Cloud API.";
+  if (!accessToken || !apiUrl) {
+    deliveryError = "Faltan WHAPI_API_URL o WHAPI_TOKEN.";
   } else {
     const customerDigits = input.customerPhone.replace(/\D/g, "");
     const customerPhone = customerDigits.length === 10 ? `57${customerDigits}` : customerDigits;
@@ -148,47 +152,40 @@ export async function sendAppointmentConfirmationWhatsApp(input: {
     }
     try {
       if (deliveryError) throw new Error(deliveryError);
-      const response = await fetch(
-        `https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(phoneNumberId)}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: customerPhone,
-            type: "template",
-            template: {
-              name: templateName,
-              language: { code: templateLanguage },
-              components: [{
-                type: "body",
-                parameters: [
-                  { type: "text", text: input.customerName },
-                  { type: "text", text: input.businessName },
-                  { type: "text", text: localDateTime },
-                  { type: "text", text: input.staffName },
-                ],
-              }],
-            },
-          }),
+      const endpoint = new URL("/messages/text", apiUrl);
+      if (endpoint.protocol !== "https:") throw new Error("WHAPI_API_URL debe usar HTTPS.");
+      const messageBody = input.decision === "confirmada"
+        ? `Hola ${input.customerName}. Tu cita en ${input.businessName} fue confirmada.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora: ${localDateTime}\nProfesional: ${input.staffName}\n\n¡Te esperamos!`
+        : `Hola ${input.customerName}. No fue posible aceptar tu solicitud de cita en ${input.businessName}.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora solicitada: ${localDateTime}\nProfesional: ${input.staffName}\n\nPor favor, elige otro horario o comunícate con el negocio.`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-      );
-      const result = await response.json() as WhatsAppApiResponse;
-      if (!response.ok) deliveryError = result.error?.message ?? `WhatsApp respondió ${response.status}.`;
-      else {
-        messageId = result.messages?.[0]?.id ?? null;
-        if (!messageId) deliveryError = "WhatsApp no devolvió la confirmación del mensaje.";
+        body: JSON.stringify({ to: customerPhone, body: messageBody }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const responseText = await response.text();
+      let result: z.infer<typeof whapiResponseSchema> | null = null;
+      try {
+        result = whapiResponseSchema.parse(JSON.parse(responseText));
+      } catch {
+        if (response.ok) deliveryError = "Whapi devolvió una respuesta que no se pudo interpretar.";
+      }
+      if (!response.ok) deliveryError = result?.error?.message ?? `Whapi respondió ${response.status}.`;
+      else if (result) {
+        messageId = result.message?.id ?? null;
+        if (result.sent !== true && !messageId) deliveryError = "Whapi no confirmó el envío del mensaje.";
       }
     } catch (error) {
-      deliveryError = error instanceof Error ? error.message : "No se pudo conectar con WhatsApp.";
+      deliveryError = error instanceof Error ? error.message : "No se pudo conectar con Whapi.";
     }
   }
 
   const { error: saveError } = await admin.from("appointment_whatsapp_deliveries").upsert({
     appointment_id: input.appointmentId,
+    decision: input.decision,
     status: deliveryError ? "failed" : "sent",
     attempts: nextAttempt,
     provider_message_id: messageId,

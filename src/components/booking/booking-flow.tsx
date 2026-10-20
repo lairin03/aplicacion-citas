@@ -178,7 +178,7 @@ export function BookingFlow({ business, services, staff, today }: Props) {
             <label className="block text-sm font-medium">Celular<input name="phone" type="tel" autoComplete="tel" required minLength={7} maxLength={25} placeholder="+57 300 123 4567" className="form-input" /></label>
             <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm leading-5 text-slate-600">
               <input name="whatsappConsent" type="checkbox" required className="mt-1 size-4 shrink-0 accent-sky-700" />
-              <span>Acepto recibir por WhatsApp, desde Agenda Clara, mensajes relacionados con esta cita y su confirmación.</span>
+              <span>Acepto recibir por WhatsApp, desde Agenda Clara, mensajes sobre esta solicitud, incluido si la cita es aceptada o rechazada.</span>
             </label>
             <label className="block text-sm font-medium">Nota para el negocio (opcional)<textarea name="notes" maxLength={500} rows={3} className="form-input resize-y" /></label>
             <div className="rounded-xl bg-slate-50 p-4 text-sm">

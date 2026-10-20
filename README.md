@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0013` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Aplicar, en orden, las migraciones `0001` a `0015` de `supabase/migrations/` desde el SQL Editor de Supabase.
 
 ## Ejecutar localmente
 
@@ -25,7 +25,7 @@ Los pagos de Básico y Profesional son mensuales y manuales: el cliente vuelve a
 
 Cada profesional tiene su propio correo, que se registra al crear el negocio o la sede y se puede editar en Configuración → Profesionales. Las solicitudes se envían a ese correo; las cuentas existentes deben completar el campo antes de aparecer como disponibles para nuevas reservas. Para enviar el correo, configura en las variables del servidor `RESEND_API_KEY` con una llave de Resend, `NOTIFICATION_FROM_EMAIL` con el remitente central verificado en Resend (por ejemplo, `Agenda Clara <citas@tu-dominio.com>`) y `APP_URL` con el dominio público HTTPS de la aplicación. `NOTIFICATION_FROM_EMAIL` es el remitente de Agenda Clara; el correo de cada profesional es el destinatario. El enlace de decisión vence en 24 horas, es de un solo uso y abre una página que pide confirmar la acción para evitar que los escáneres de enlaces de correo acepten una cita por accidente.
 
-Cuando el profesional acepta, Agenda Clara envía la confirmación desde el número central usando WhatsApp Cloud API. Configura `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION`, `WHATSAPP_CONFIRMATION_TEMPLATE` y `WHATSAPP_TEMPLATE_LANGUAGE` en las variables del servidor. Meta selecciona el número emisor mediante el `PHONE_NUMBER_ID`; no se envía un parámetro `from_number` aparte. Ese ID corresponde al número central registrado en WhatsApp Manager/Meta Developers. La plantilla aprobada debe tener cuatro variables de cuerpo en este orden: nombre de la cliente, nombre del negocio, fecha y hora, nombre del profesional. Meta debe aprobar la plantilla y el token debe tener permiso para enviar mensajes desde ese número central. En la reserva se solicita consentimiento para este mensaje. Si WhatsApp no está configurado o Meta rechaza el envío, la cita queda confirmada pero la página de respuesta avisa que el mensaje no se envió; el resultado queda registrado para soporte.
+La solicitud se envía al correo del profesional. Al aceptar o rechazar desde el enlace, Agenda Clara actualiza el estado y envía a la clienta un WhatsApp con el resultado y los datos de la cita. El formulario público solicita consentimiento para estos mensajes. Configura `WHAPI_API_URL` (por defecto `https://gate.whapi.cloud`) y `WHAPI_TOKEN` como variables secretas del servidor. El token nunca debe exponerse al navegador ni guardarse en el repositorio. La migración `0015` amplía el registro de entregas y prepara el envío para ambos resultados. Si Whapi falla, la decisión de la cita se conserva y la página informa que no se pudo enviar la notificación.
 
 ```powershell
 npm run dev

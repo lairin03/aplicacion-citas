@@ -7,9 +7,10 @@ import { formatBusinessDateTime } from "@/lib/dates";
 type SearchParams = Promise<{ token?: string; decision?: string; result?: string }>;
 
 const resultMessages: Record<string, { title: string; detail: string }> = {
-  confirmed: { title: "Cita aceptada", detail: "La cita quedó confirmada y se envió el WhatsApp a la cliente." },
-  "confirmed-not-sent": { title: "Cita aceptada, WhatsApp pendiente", detail: "La cita quedó confirmada, pero no se pudo enviar el WhatsApp. Revisa la configuración de WhatsApp Cloud API." },
-  rejected: { title: "Cita rechazada", detail: "La cita se canceló y el horario quedó disponible." },
+  confirmed: { title: "Cita aceptada", detail: "La cita quedó confirmada y se notificó a la clienta por WhatsApp." },
+  "confirmed-not-sent": { title: "Cita aceptada, notificación pendiente", detail: "La cita quedó confirmada, pero no se pudo notificar a la clienta por WhatsApp. Revisa la configuración de Whapi." },
+  rejected: { title: "Solicitud rechazada", detail: "La solicitud se rechazó y se notificó a la clienta por WhatsApp." },
+  "rejected-not-sent": { title: "Solicitud rechazada, notificación pendiente", detail: "La solicitud se rechazó, pero no se pudo notificar a la clienta por WhatsApp. Revisa la configuración de Whapi." },
   expired: { title: "Enlace vencido", detail: "Este enlace de aprobación venció. La cita no fue modificada." },
   processed: { title: "Solicitud ya procesada", detail: "Esta cita ya fue aceptada, rechazada o modificada anteriormente." },
   invalid: { title: "Enlace no válido", detail: "No se pudo validar el enlace de aprobación." },
@@ -83,7 +84,7 @@ export default async function AppointmentDecisionPage({ searchParams }: { search
         <p><strong>Fecha:</strong> {formatBusinessDateTime(appointment.starts_at, business.timezone)}</p>
       </div>
       <p className="mt-4 text-sm leading-6 text-slate-600">
-        Elige aceptar para confirmar la cita y enviar automáticamente un WhatsApp a la cliente, o rechazar para cancelar la solicitud.
+        Elige aceptar para confirmar la cita o rechazar la solicitud. La clienta recibirá por WhatsApp el resultado de la decisión.
       </p>
       <form action={processAppointmentDecisionAction} className="mt-6 grid gap-3 sm:grid-cols-2">
         <input type="hidden" name="token" value={token} />
