@@ -7,7 +7,11 @@ import type { AvailableSlot, PublicBusiness } from "@/lib/public-booking";
 type Service = { id: string; name: string; duration_minutes: number; price_cop: number };
 type Staff = { id: string; name: string; serviceIds: string[] };
 type Props = { business: PublicBusiness; services: Service[]; staff: Staff[]; today: string };
-type Booking = { appointmentId: string; startsAt: string; services: Service[]; staffName: string; customerName: string; approvalEmailSent: boolean };
+type ApprovalEmailIssue = "professional-email" | "email-configuration" | "email-provider" | "appointment-details";
+type Booking = {
+  appointmentId: string; startsAt: string; services: Service[]; staffName: string;
+  customerName: string; approvalEmailSent: boolean; approvalEmailIssue?: ApprovalEmailIssue;
+};
 const money = (value: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
 
 function brandTextColor(hexColor: string) {
@@ -77,7 +81,10 @@ export function BookingFlow({ business, services, staff, today }: Props) {
           ...newDetails,
         }),
       });
-      const result = await response.json() as { appointmentId?: string; startsAt?: string; approvalEmailSent?: boolean; error?: string };
+      const result = await response.json() as {
+        appointmentId?: string; startsAt?: string; approvalEmailSent?: boolean;
+        approvalEmailIssue?: ApprovalEmailIssue; error?: string;
+      };
       if (!response.ok || !result.appointmentId || !result.startsAt) {
         throw new Error(result.error ?? "No se pudo completar la reserva.");
       }
@@ -88,6 +95,7 @@ export function BookingFlow({ business, services, staff, today }: Props) {
         staffName: selectedSlot?.staffName ?? "Profesional",
         customerName: newDetails.name,
         approvalEmailSent: result.approvalEmailSent ?? false,
+        approvalEmailIssue: result.approvalEmailIssue,
       });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No se pudo completar la reserva.");
@@ -106,7 +114,13 @@ export function BookingFlow({ business, services, staff, today }: Props) {
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
             {booking.approvalEmailSent
               ? "El profesional debe aceptar la cita. Te enviaremos la confirmación por WhatsApp cuando la apruebe."
-              : "Tu solicitud quedó registrada, pero no se pudo notificar al profesional. Contacta al negocio para confirmar el estado."}
+              : booking.approvalEmailIssue === "professional-email"
+                ? "Tu solicitud quedó registrada, pero el profesional asignado no tiene un correo configurado. Contacta al negocio para confirmar el estado."
+                : booking.approvalEmailIssue === "email-configuration"
+                  ? "Tu solicitud quedó registrada, pero el correo no está configurado en el servidor. Contacta al negocio para confirmar el estado."
+                  : booking.approvalEmailIssue === "appointment-details"
+                    ? "Tu solicitud quedó registrada, pero no se pudieron cargar los datos del profesional. Contacta al negocio para confirmar el estado."
+                    : "Tu solicitud quedó registrada, pero el proveedor de correo no aceptó el envío. Contacta al negocio para confirmar el estado."}
           </p>
           <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-slate-50 p-5 text-left">
             <p className="font-semibold">{booking.services.map((service) => service.name).join(" + ")}</p>

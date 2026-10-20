@@ -96,6 +96,7 @@ export async function POST(request: Request) {
     }
 
     let approvalEmailSent = false;
+    let approvalEmailIssue: "professional-email" | "email-configuration" | "email-provider" | "appointment-details" = "email-provider";
     try {
       const { error: consentError } = await admin.from("appointments")
         .update({ customer_whatsapp_consent: parsed.data.whatsappConsent })
@@ -107,8 +108,16 @@ export async function POST(request: Request) {
         admin.from("staff").select("name, email")
           .eq("id", parsed.data.staffId).eq("business_id", business.id).maybeSingle(),
       ]);
-      if (servicesError || selectedStaffError || !selectedStaff?.email || !selectedServices?.length) {
+      if (servicesError || selectedStaffError || !selectedServices?.length) {
+        approvalEmailIssue = "appointment-details";
         throw new Error("No se pudieron consultar los detalles para notificar al profesional.");
+      }
+      if (!selectedStaff?.email) {
+        approvalEmailIssue = "professional-email";
+        throw new Error("El profesional asignado no tiene un correo configurado.");
+      }
+      if (!process.env.RESEND_API_KEY || !process.env.NOTIFICATION_FROM_EMAIL || !process.env.APP_URL) {
+        approvalEmailIssue = "email-configuration";
       }
 
       await sendAppointmentApprovalEmail({
@@ -134,6 +143,7 @@ export async function POST(request: Request) {
       appointmentId,
       startsAt: startsAt.toISOString(),
       approvalEmailSent,
+      approvalEmailIssue: approvalEmailSent ? undefined : approvalEmailIssue,
     }, { status: 201 });
   } catch (error) {
     console.error("Error procesando una reserva pública:", error);
