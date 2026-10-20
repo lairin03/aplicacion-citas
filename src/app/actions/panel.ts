@@ -30,9 +30,9 @@ async function getOwnerBusiness() {
   if (error) throw new Error("No se pudieron consultar las sedes.");
   const business = await selectCurrentBusiness(businesses ?? []);
   if (!business) throw new Error("No se encontró un negocio para esta cuenta.");
-  if (isConfirmedSuperAdmin(user)) return { supabase, business };
+  if (isConfirmedSuperAdmin(user)) return { supabase, business, canEditProfessionalStaff: true };
   const { data: subscription, error: subscriptionError } = await supabase
-    .from("business_subscriptions").select("status, trial_ends_at, current_period_ends_at")
+    .from("business_subscriptions").select("plan, status, trial_ends_at, current_period_ends_at")
     .eq("owner_id", user.id).maybeSingle();
   if (subscriptionError) throw new Error("No se pudo validar el plan.");
   const hasAccess = (subscription?.status === "active" && !!subscription.current_period_ends_at
@@ -40,7 +40,7 @@ async function getOwnerBusiness() {
     || (subscription?.status === "trial" && !!subscription.trial_ends_at
       && new Date(subscription.trial_ends_at) > new Date());
   if (!hasAccess) throw new Error("Tu prueba terminó. Elige un plan para continuar.");
-  return { supabase, business };
+  return { supabase, business, canEditProfessionalStaff: true };
 }
 
 export async function selectBusinessAction(formData: FormData) {
@@ -381,6 +381,72 @@ export async function updateStaffEmailAction(
   if (error || !data) return { error: "No se pudo guardar el correo del profesional." };
   revalidatePath("/panel/configuracion");
   return { success: "Correo del profesional actualizado." };
+}
+
+export async function updateStaffProfileAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { supabase, business, canEditProfessionalStaff } = await getOwnerBusiness();
+  if (!canEditProfessionalStaff) return { error: "La edición completa del equipo está disponible en el plan Profesional." };
+
+  const parsed = z.object({
+    staffId: z.uuid(),
+    name: z.string().trim().min(2).max(120),
+    email: z.email("Ingresa un correo electrónico válido."),
+    serviceIds: z.array(z.uuid()).min(1, "Selecciona al menos un servicio."),
+    hours: z.array(z.object({
+      weekday: z.number().int().min(0).max(6),
+      openTime: z.string().regex(/^\d{2}:\d{2}$/),
+      closeTime: z.string().regex(/^\d{2}:\d{2}$/),
+      isClosed: z.boolean(),
+    })).length(7),
+  }).safeParse({
+    staffId: formData.get("staffId"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    serviceIds: formData.getAll("serviceIds"),
+    hours: Array.from({ length: 7 }, (_, weekday) => ({
+      weekday,
+      openTime: formData.get(`open-${weekday}`),
+      closeTime: formData.get(`close-${weekday}`),
+      isClosed: formData.get(`closed-${weekday}`) === "on",
+    })),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos del profesional." };
+  if (parsed.data.hours.some((hour) => !hour.isClosed && hour.openTime >= hour.closeTime)) {
+    return { error: "La hora de apertura debe ser anterior a la hora de cierre en cada día." };
+  }
+
+  const { error } = await supabase.rpc("update_staff_profile_for_business", {
+    p_business_id: business.id,
+    p_staff_id: parsed.data.staffId,
+    p_name: parsed.data.name,
+    p_email: parsed.data.email.trim().toLowerCase(),
+    p_service_ids: [...new Set(parsed.data.serviceIds)],
+    p_hours: parsed.data.hours.map((hour) => ({
+      weekday: hour.weekday,
+      open_time: hour.openTime,
+      close_time: hour.closeTime,
+      is_closed: hour.isClosed,
+    })),
+  });
+  if (error?.message.includes("ACTIVE_PLAN_REQUIRED")) {
+    return { error: "Se requiere un plan vigente para editar el perfil del profesional." };
+  }
+  if (error?.message.includes("STAFF_PROFILE_NOT_FOUND")) return { error: "No se encontró el profesional en este negocio." };
+  if (error?.message.includes("STAFF_SERVICE_INVALID")) return { error: "Selecciona servicios activos de este negocio." };
+  if (error?.message.includes("STAFF_HOURS_INVALID")) return { error: "Revisa los siete horarios semanales ingresados." };
+  if (error) {
+    console.error("No se pudo actualizar el perfil del profesional.", {
+      code: error.code,
+      message: error.message,
+    });
+    return { error: "No se pudo guardar el perfil del profesional." };
+  }
+  revalidatePath("/panel/configuracion");
+  revalidatePath(`/b/${business.slug}`);
+  return { success: "Perfil, servicios y horarios actualizados." };
 }
 
 export async function toggleStaffAction(formData: FormData) {

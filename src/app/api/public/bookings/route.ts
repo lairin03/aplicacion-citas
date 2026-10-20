@@ -43,7 +43,10 @@ export async function POST(request: Request) {
       || requestHeaders.get("x-real-ip") || "unknown";
     const hashSecret = process.env.APP_RATE_LIMIT_HASH_SECRET;
     if (!hashSecret) {
-      return NextResponse.json({ error: "El sistema de reservas no está configurado." }, { status: 503 });
+      console.error("Falta APP_RATE_LIMIT_HASH_SECRET en las variables de entorno del servidor.");
+      return NextResponse.json({
+        error: "El sistema de reservas no está configurado: falta APP_RATE_LIMIT_HASH_SECRET en el servidor.",
+      }, { status: 503 });
     }
     const ipHash = createHmac("sha256", hashSecret).update(ipAddress).digest("hex");
     const windowStart = new Date(Math.floor(Date.now() / 900_000) * 900_000).toISOString();

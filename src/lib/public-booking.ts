@@ -75,6 +75,7 @@ export async function getAvailableSlots(input: {
   const { data: offered, error: offeredError } = await admin.from("staff_services")
     .select("staff_id")
     .eq("business_id", input.business.id)
+    .eq("is_active", true)
     .in("service_id", input.serviceIds);
   if (offeredError) throw new Error("No se pudo consultar los profesionales.");
 
@@ -98,16 +99,20 @@ export async function getAvailableSlots(input: {
   const availableStaff = (activeStaff ?? []).filter((person) =>
     !input.staffId || person.id === input.staffId,
   );
-  if (input.staffId && !availableStaff.length) return [];
+  if (!availableStaff.length) return [];
 
   const weekday = new Date(`${input.date}T12:00:00Z`).getUTCDay();
-  const { data: hours, error: hoursError } = await admin.from("business_hours")
-    .select("open_time, close_time, is_closed")
+  const { data: hours, error: hoursError } = await admin.from("staff_business_hours")
+    .select("staff_id, open_time, close_time, is_closed")
     .eq("business_id", input.business.id)
     .eq("weekday", weekday)
-    .maybeSingle();
+    .in("staff_id", availableStaff.map((person) => person.id));
   if (hoursError) throw new Error("No se pudo consultar los horarios.");
-  if (!hours || hours.is_closed || !hours.open_time || !hours.close_time) return [];
+  const hoursByStaff = new Map((hours ?? []).map((hour) => [hour.staff_id, hour]));
+  const workingHours = [...hoursByStaff.values()].filter((hour) =>
+    !hour.is_closed && hour.open_time && hour.close_time,
+  );
+  if (!workingHours.length) return [];
 
   const dayStart = localDateToUtc(input.date, input.business.timezone);
   const dayEnd = localDateToUtc(localDateAtOffset(input.date, 1), input.business.timezone);
@@ -131,8 +136,8 @@ export async function getAvailableSlots(input: {
     const [hour, minute] = value.slice(0, 5).split(":").map(Number);
     return hour * 60 + minute;
   };
-  const openMinute = toMinutes(hours.open_time);
-  const closeMinute = toMinutes(hours.close_time);
+  const openMinute = Math.min(...workingHours.map((hour) => toMinutes(hour.open_time!)));
+  const closeMinute = Math.max(...workingHours.map((hour) => toMinutes(hour.close_time!)));
   const slots: AvailableSlot[] = [];
   const firstStartMinute = Math.ceil(openMinute / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES;
   for (
@@ -148,6 +153,10 @@ export async function getAvailableSlots(input: {
     const bufferedEndsAt = new Date(endsAt.getTime() + APPOINTMENT_BUFFER_MS);
 
     const firstFreeStaff = availableStaff.find((person) => {
+      const staffHours = hoursByStaff.get(person.id);
+      if (!staffHours || staffHours.is_closed || !staffHours.open_time || !staffHours.close_time
+        || startMinute < toMinutes(staffHours.open_time)
+        || startMinute + totalDuration > toMinutes(staffHours.close_time)) return false;
       const hasAppointment = appointments?.some((appointment) =>
         appointment.staff_id === person.id
         && !(appointment.status === "pendiente" && new Date(appointment.created_at) <= staleRequestCutoff)

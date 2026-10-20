@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0015` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Aplicar, en orden, las migraciones `0001` a `0017` de `supabase/migrations/` desde el SQL Editor de Supabase.
 
 ## Ejecutar localmente
 
@@ -16,6 +16,7 @@ Copy-Item .env.example .env.local
 ```
 
 Completa `.env.local` con las claves del proyecto Supabase. `SUPABASE_SERVICE_ROLE_KEY` y `APP_RATE_LIMIT_HASH_SECRET` son secretos de servidor: no los prefijes con `NEXT_PUBLIC_` ni los incluyas en el navegador.
+En producción, configura también `APP_RATE_LIMIT_HASH_SECRET` en las variables del despliegue; sin ella, el endpoint público de reservas responde con error de configuración.
 
 Para cobrar los planes, configura `APP_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` con las credenciales del mismo ambiente de Wompi (pruebas o producción). Nunca expongas los secretos de integridad, eventos o service role en el navegador. Configura en el Dashboard de Wompi la URL de eventos `https://<tu-dominio>/api/webhooks/wompi`.
 
@@ -68,6 +69,7 @@ Ejecuta la prueba únicamente contra un proyecto de prueba: crea y elimina regis
 - `/registro`, `/login`, `/onboarding`
 - `/panel` (agenda diaria, semanal y mensual)
 - El plan Profesional permite crear hasta 2 sedes y administrar hasta 3 profesionales por sede (6 en total). El límite se aplica en la base de datos; un cambio de plan o cupo no elimina sedes ni profesionales existentes.
+- Con cualquier plan vigente, cada profesional puede editar su nombre, correo, servicios asignados y horario semanal. Los horarios individuales se inicializan desde el horario del negocio; los cambios posteriores al horario general solo actualizan profesionales que aún no personalizaron sus horarios.
 - `/panel/historial`, `/panel/clientes`, `/panel/clientes/[id]`, `/panel/configuracion`
 - `/b/[slug]` (reserva pública sin cuenta)
 - `/api/public/availability` y `/api/public/bookings`

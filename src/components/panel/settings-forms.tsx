@@ -6,6 +6,7 @@ import {
   createBlockedTimeAction,
   saveServiceAction,
   saveStaffAction,
+  updateStaffProfileAction,
   toggleServiceAction,
   toggleStaffAction,
   updateStaffEmailAction,
@@ -25,9 +26,16 @@ type Business = {
 };
 type Hours = { weekday: number; open_time: string | null; close_time: string | null; is_closed: boolean };
 type Service = { id: string; name: string; duration_minutes: number; price_cop: number; is_active: boolean };
-type Staff = { id: string; name: string; email: string | null; is_active: boolean };
+type StaffHours = { weekday: number; open_time: string | null; close_time: string | null; is_closed: boolean };
+type Staff = {
+  id: string; name: string; email: string | null; is_active: boolean;
+  serviceIds: string[]; hours: StaffHours[];
+};
 type BlockedTime = { id: string; staff_id: string | null; starts_at: string; ends_at: string; reason: string | null; staff: { name: string } | null };
-type Props = { business: Business; hours: Hours[]; services: Service[]; staff: Staff[]; blockedTimes: BlockedTime[] };
+type Props = {
+  business: Business; hours: Hours[]; services: Service[]; staff: Staff[];
+  blockedTimes: BlockedTime[]; canEditStaffProfiles: boolean;
+};
 const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const initialState: ActionState = {};
 
@@ -37,7 +45,7 @@ function Feedback({ state }: { state: ActionState }) {
   return null;
 }
 
-export function SettingsForms({ business, hours, services, staff, blockedTimes }: Props) {
+export function SettingsForms({ business, hours, services, staff, blockedTimes, canEditStaffProfiles }: Props) {
   const [businessState, businessAction, businessPending] = useActionState(updateBusinessAction, initialState);
   const [hoursState, hoursAction, hoursPending] = useActionState(updateHoursAction, initialState);
   const [serviceState, serviceAction, servicePending] = useActionState(saveServiceAction, initialState);
@@ -166,6 +174,7 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes }
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Horarios</h2>
+        <p className="mt-1 text-sm text-slate-600">Este es el horario base del negocio. En el plan Profesional, cada profesional puede tener un horario propio.</p>
         <form action={hoursAction} className="mt-5 space-y-2">
           {days.map((day, weekday) => {
             const value = dayHours[weekday];
@@ -200,7 +209,9 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes }
           {staff.map((person) => <div key={person.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
               <p className="font-medium">{person.name}{!person.email && <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">Falta correo</span>}</p>
-              <StaffEmailEditor person={person} />
+              {canEditStaffProfiles
+                ? <StaffProfileEditor person={person} services={services} />
+                : <StaffEmailEditor person={person} />}
             </div>
             <form action={toggleStaffAction}><input type="hidden" name="staffId" value={person.id} /><input type="hidden" name="active" value={String(!person.is_active)} /><button className="min-h-10 text-sm font-medium text-amber-800">{person.is_active ? "Desactivar" : "Activar"}</button></form>
           </div>)}
@@ -212,6 +223,7 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes }
           <div className="flex flex-wrap gap-3">{services.filter((service) => service.is_active).map((service) => <label key={service.id} className="flex items-center gap-2 text-sm"><input type="checkbox" name="serviceIds" value={service.id} className="accent-amber-600" />{service.name}</label>)}</div>
           <button disabled={staffPending} className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">{staffPending ? "Guardando…" : "Agregar profesional"}</button>
         </form><Feedback state={staffState} />
+        {!canEditStaffProfiles && <p className="mt-4 text-sm text-slate-500">La edición completa requiere una suscripción vigente.</p>}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -236,6 +248,56 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes }
       </section>
     </div>
   );
+}
+
+function StaffProfileEditor({ person, services }: { person: Staff; services: Service[] }) {
+  const [state, action, pending] = useActionState(updateStaffProfileAction, initialState);
+  const hoursByDay = new Map(person.hours.map((hour) => [hour.weekday, hour]));
+
+  return <details className="mt-3 rounded-xl border border-slate-200">
+    <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-700">Editar perfil, servicios y horarios</summary>
+    <form action={action} className="space-y-4 border-t border-slate-100 p-3">
+      <input type="hidden" name="staffId" value={person.id} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">Nombre
+          <input name="name" required minLength={2} maxLength={120} defaultValue={person.name} className="form-input mt-1" />
+        </label>
+        <label className="text-sm font-medium">Correo
+          <input name="email" type="email" required defaultValue={person.email ?? ""} className="form-input mt-1" />
+        </label>
+      </div>
+      <fieldset>
+        <legend className="text-sm font-semibold">Servicios que ofrece</legend>
+        <div className="mt-2 flex flex-wrap gap-3">
+          {services.filter((service) => service.is_active).map((service) => <label key={service.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="serviceIds" value={service.id} defaultChecked={person.serviceIds.includes(service.id)} className="accent-amber-600" />
+            {service.name}
+          </label>)}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="text-sm font-semibold">Disponibilidad semanal</legend>
+        <div className="mt-2 space-y-2">
+          {days.map((day, weekday) => {
+            const hour = hoursByDay.get(weekday);
+            return <div key={day} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg bg-slate-50 p-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+              <span className="text-sm">{day}</span>
+              <input name={`open-${weekday}`} type="time" defaultValue={hour?.open_time?.slice(0, 5) ?? "09:00"} aria-label={`Apertura ${day}`} className="min-h-10 rounded-lg border border-slate-200 px-2 text-sm" />
+              <input name={`close-${weekday}`} type="time" defaultValue={hour?.close_time?.slice(0, 5) ?? "18:00"} aria-label={`Cierre ${day}`} className="min-h-10 rounded-lg border border-slate-200 px-2 text-sm" />
+              <label className="col-span-full flex items-center gap-2 text-xs text-slate-600 sm:col-span-1">
+                <input name={`closed-${weekday}`} type="checkbox" defaultChecked={hour?.is_closed ?? false} className="accent-amber-600" />
+                Cerrado
+              </label>
+            </div>;
+          })}
+        </div>
+      </fieldset>
+      <button disabled={pending} className="min-h-10 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-60">
+        {pending ? "Guardando…" : "Guardar cambios"}
+      </button>
+      <Feedback state={state} />
+    </form>
+  </details>;
 }
 
 function StaffEmailEditor({ person }: { person: Staff }) {

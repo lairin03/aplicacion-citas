@@ -19,7 +19,7 @@ export default async function BookingPage({ params }: { params: Promise<{ slug: 
     admin.from("services").select("id, name, duration_minutes, price_cop")
       .eq("business_id", business.id).eq("is_active", true).order("name"),
     admin.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).not("email", "is", null).order("name"),
-    admin.from("staff_services").select("staff_id, service_id").eq("business_id", business.id),
+    admin.from("staff_services").select("staff_id, service_id").eq("business_id", business.id).eq("is_active", true),
   ]);
   if (servicesError || staffError || offeringsError) throw new Error("No se pudo cargar la información de reservas.");
   const publicStaff = (staff ?? []).map((person) => ({
