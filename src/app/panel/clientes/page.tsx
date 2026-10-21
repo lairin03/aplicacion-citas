@@ -1,20 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { selectCurrentBusiness } from "@/lib/business-selection";
+import { getBusinessFeatureContext } from "@/lib/professional-access";
 
 type SearchParams = Promise<{ q?: string }>;
 
 export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const query = (params.q ?? "").trim().slice(0, 80);
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: businesses, error: businessError } = await supabase.from("businesses")
-    .select("id").eq("owner_id", user.id).order("id");
-  const business = await selectCurrentBusiness(businesses ?? []);
-  if (businessError || !business) redirect("/onboarding");
+  const { supabase, business } = await getBusinessFeatureContext("customer_history");
 
   let customerQuery = supabase.from("customers")
     .select("id, name, phone, created_at").eq("business_id", business.id)

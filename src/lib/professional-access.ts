@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
+import { getBusinessFeatures, type BusinessFeature } from "@/lib/business-features";
 
-export async function getProfessionalContext() {
+export async function getBusinessFeatureContext(feature: BusinessFeature) {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) redirect("/login");
@@ -31,7 +32,12 @@ export async function getProfessionalContext() {
     || (subscription?.status === "active" && !!subscription.current_period_ends_at
       && new Date(subscription.current_period_ends_at) > now);
   if (!active) redirect("/planes?trial=expired");
-  if (subscription?.plan !== "professional") redirect("/panel?feature=professional");
+  const features = await getBusinessFeatures(supabase, business.id, subscription?.plan ?? "");
+  if (!features[feature]) redirect(`/panel?feature=${feature}`);
 
   return { supabase, user, business };
+}
+
+export async function getProfessionalContext(feature: "cash" | "reports") {
+  return getBusinessFeatureContext(feature);
 }

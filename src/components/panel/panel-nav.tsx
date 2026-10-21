@@ -1,14 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
-import { BarChart3, CalendarDays, Clock4, FileText, MapPinPlus, Settings, ShieldCheck, UsersRound, WalletCards } from "lucide-react";
+import { BarChart3, CalendarDays, Clock4, FileText, Headset, MapPinPlus, MessagesSquare, Settings, ShieldCheck, UsersRound, WalletCards } from "lucide-react";
 import { signOutAction } from "@/app/actions/auth";
 import { BusinessSelector } from "@/components/panel/business-selector";
 
 const baseLinks = [
   { href: "/panel", label: "Agenda", icon: CalendarDays },
-  { href: "/panel/historial", label: "Historial", icon: Clock4 },
-  { href: "/panel/clientes", label: "Clientes", icon: UsersRound },
   { href: "/panel/configuracion", label: "Configuración", icon: Settings },
+  { href: "/panel/soporte", label: "Soporte", icon: Headset },
 ];
 
 type BusinessOption = { id: string; name: string };
@@ -19,7 +18,9 @@ export function PanelNav({
   businesses,
   activeBusinessId,
   canAddLocation,
-  hasProfessionalFeatures,
+  hasCashFeature,
+  hasReportsFeature,
+  hasCustomerHistory,
   isSuperAdmin,
 }: {
   businessName: string;
@@ -27,17 +28,22 @@ export function PanelNav({
   businesses: BusinessOption[];
   activeBusinessId: string;
   canAddLocation: boolean;
-  hasProfessionalFeatures: boolean;
+  hasCashFeature: boolean;
+  hasReportsFeature: boolean;
+  hasCustomerHistory: boolean;
   isSuperAdmin: boolean;
 }) {
   const links = [
     ...(businesses.length ? baseLinks : []),
-    ...(hasProfessionalFeatures ? [
-      { href: "/panel/caja", label: "Caja", icon: WalletCards },
-      { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
+    ...(businesses.length && hasCustomerHistory ? [
+      { href: "/panel/historial", label: "Historial", icon: Clock4 },
+      { href: "/panel/clientes", label: "Clientes", icon: UsersRound },
     ] : []),
+    ...(businesses.length && hasCashFeature ? [{ href: "/panel/caja", label: "Caja", icon: WalletCards }] : []),
+    ...(businesses.length && hasReportsFeature ? [{ href: "/panel/reportes", label: "Reportes", icon: BarChart3 }] : []),
     ...(isSuperAdmin ? [
       { href: "/admin", label: "Super Admin", icon: ShieldCheck },
+      { href: "/admin/tickets", label: "Tickets", icon: MessagesSquare },
     ] : []),
   ];
   const pdfLogo = logoUrl ? /\.pdf(?:$|[?#])/i.test(logoUrl) : false;

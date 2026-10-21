@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { updateSubscriptionAsSuperAdminAction } from "@/app/actions/super-admin";
+import { updatePlanFeatureCatalogAction, updateSubscriptionAsSuperAdminAction } from "@/app/actions/super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
@@ -14,16 +14,24 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
 
   const admin = createAdminClient();
-  const [{ data: subscriptions, error: subscriptionsError }, { data: businesses, error: businessesError }] = await Promise.all([
+  const [
+    { data: subscriptions, error: subscriptionsError },
+    { data: businesses, error: businessesError },
+    { data: planFeatures, error: planFeaturesError },
+    { data: businessOverrides, error: overridesError },
+  ] = await Promise.all([
     admin.from("business_subscriptions")
       .select("owner_id, plan, status, trial_ends_at, current_period_ends_at, enterprise_staff_limit, enterprise_location_limit, staff_limit_override, location_limit_override, updated_at")
       .order("updated_at", { ascending: false }),
     admin.from("businesses")
-      .select("owner_id, name, slug")
+      .select("id, owner_id, name, slug")
       .order("name"),
+    admin.from("plan_feature_catalog").select("plan, cash_enabled, reports_enabled, customer_history_enabled, benefits").order("plan"),
+    admin.from("business_feature_overrides")
+      .select("business_id, cash_enabled, reports_enabled, customer_history_enabled"),
   ]);
-  if (subscriptionsError || businessesError) {
-    throw new Error("No se pudieron cargar las suscripciones. Verifica las migraciones y la clave de servicio.");
+  if (subscriptionsError || businessesError || planFeaturesError || overridesError) {
+    throw new Error("No se pudieron cargar las suscripciones o funciones de los planes. Verifica las migraciones y la clave de servicio.");
   }
 
   const usersById = new Map<string, string>();
@@ -36,13 +44,15 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
     if (data.users.length < 1000) break;
   }
 
-  const businessesByOwner = new Map<string, string[]>();
+  const businessesByOwner = new Map<string, NonNullable<typeof businesses>>();
   for (const business of businesses ?? []) {
-    const names = businessesByOwner.get(business.owner_id) ?? [];
-    names.push(`${business.name} (${business.slug})`);
-    businessesByOwner.set(business.owner_id, names);
+    const owned = businessesByOwner.get(business.owner_id) ?? [];
+    owned.push(business);
+    businessesByOwner.set(business.owner_id, owned);
   }
+  const overridesByBusiness = new Map((businessOverrides ?? []).map((override) => [override.business_id, override]));
   const params = await searchParams;
+  const planLabels = { basic: "Básico", professional: "Profesional", enterprise: "Empresarial" } as const;
 
   return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950 sm:px-8">
     <div className="mx-auto max-w-7xl">
@@ -56,6 +66,26 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
       </header>
       {params.saved === "1" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Suscripción actualizada.</p>}
       {params.saved === "location" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Sede creada correctamente.</p>}
+      {params.saved === "features" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Funciones y beneficios de los planes actualizados.</p>}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-black">Qué incluye cada plan</h2>
+        <p className="mt-1 text-sm text-slate-600">Configura los accesos predeterminados y los beneficios descriptivos que se mostrarán para cada plan. Una excepción por sede puede reemplazar estos accesos.</p>
+        <div className="mt-4 grid gap-4 xl:grid-cols-3">
+          {(planFeatures ?? []).map((plan) => <form key={plan.plan} action={updatePlanFeatureCatalogAction} className="rounded-xl border border-slate-200 p-4">
+            <input type="hidden" name="plan" value={plan.plan} />
+            <h3 className="font-bold">{planLabels[plan.plan as keyof typeof planLabels]}</h3>
+            <div className="mt-3 space-y-2">
+              <FeatureCheckbox name="cashEnabled" checked={plan.cash_enabled} label="Caja" />
+              <FeatureCheckbox name="reportsEnabled" checked={plan.reports_enabled} label="Reportes" />
+              <FeatureCheckbox name="customerHistoryEnabled" checked={plan.customer_history_enabled} label="Historial y ficha de clientes" />
+            </div>
+            <label className="mt-4 block text-xs font-semibold text-slate-600">Beneficios (uno por línea)
+              <textarea name="benefits" rows={5} defaultValue={Array.isArray(plan.benefits) ? plan.benefits.join("\n") : ""} className="form-input mt-1 resize-y" />
+            </label>
+            <button className="mt-3 min-h-10 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white">Guardar plan</button>
+          </form>)}
+        </div>
+      </section>
       <div className="mt-6 space-y-3">
         {(subscriptions ?? []).map((subscription) => {
           const isEditing = params.edit === subscription.owner_id;
@@ -82,7 +112,7 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
                     && <span className="mt-2 inline-block rounded-full bg-sky-100 px-2 py-1 text-[10px] font-black uppercase text-sky-900 sm:ml-2">Super Admin · Profesional ilimitado</span>}
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  {ownerBusinesses.length ? `${ownerBusinesses.length} ${ownerBusinesses.length === 1 ? "sede" : "sedes"} · ${ownerBusinesses.slice(0, 2).join(" · ")}${ownerBusinesses.length > 2 ? " · …" : ""}` : "Sin sedes creadas"}
+                  {ownerBusinesses.length ? `${ownerBusinesses.length} ${ownerBusinesses.length === 1 ? "sede" : "sedes"} · ${ownerBusinesses.slice(0, 2).map((site) => `${site.name} (${site.slug})`).join(" · ")}${ownerBusinesses.length > 2 ? " · …" : ""}` : "Sin sedes creadas"}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">
                   Plan <strong className="uppercase text-slate-800">{subscription.plan}</strong>
@@ -132,6 +162,19 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
                 <input name="locationLimit" type="number" min="0" max="100000" defaultValue={subscription.location_limit_override ?? (subscription.plan === "enterprise" ? locationDefault : "")} className="form-input mt-1" />
               </label>
               <p className="text-xs leading-5 text-slate-500 sm:col-span-2 xl:col-span-3">Límite por defecto: Básico 1 sede y 1 profesional; Profesional 2 sedes con hasta 3 profesionales por sede; Empresarial conserva los cupos del contrato. En Profesional, el límite de profesionales es por sede; en Empresarial es total por cuenta. Para Básico/Profesional, vacío hereda el plan; en Empresarial vacío conserva su cupo actual. 0 significa sin límite.</p>
+              {ownerBusinesses.length > 0 && <fieldset className="space-y-3 sm:col-span-2 xl:col-span-3">
+                <legend className="font-bold">Excepciones de funciones por negocio</legend>
+                <p className="text-xs text-slate-500">“Heredar del plan” sigue los permisos predeterminados configurados arriba.</p>
+                {ownerBusinesses.map((site) => {
+                  const overrides = overridesByBusiness.get(site.id);
+                  return <div key={site.id} className="grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[1fr_repeat(3,minmax(0,1fr))]">
+                    <div className="min-w-0"><p className="font-semibold">{site.name}</p><p className="truncate text-xs text-slate-500">Enlace /b/{site.slug}</p></div>
+                    <FeatureOverrideSelect name={`feature_${site.id}_cash`} label="Caja" value={overrides?.cash_enabled} />
+                    <FeatureOverrideSelect name={`feature_${site.id}_reports`} label="Reportes" value={overrides?.reports_enabled} />
+                    <FeatureOverrideSelect name={`feature_${site.id}_history`} label="Historial de clientes" value={overrides?.customer_history_enabled} />
+                  </div>;
+                })}
+              </fieldset>}
               <button className="min-h-12 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800 sm:col-span-2 xl:col-span-1">Guardar cambios</button>
             </form>}
           </article>;
@@ -144,4 +187,29 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
 
 function asDate(value: string | null) {
   return value ? value.slice(0, 10) : "";
+}
+
+function FeatureCheckbox({ name, checked, label }: { name: string; checked: boolean; label: string }) {
+  return <label className="flex items-center gap-2 text-sm text-slate-700">
+    <input type="checkbox" name={name} defaultChecked={checked} className="size-4 accent-sky-700" />
+    {label}
+  </label>;
+}
+
+function FeatureOverrideSelect({
+  name,
+  label,
+  value,
+}: {
+  name: string;
+  label: string;
+  value: boolean | null | undefined;
+}) {
+  return <label className="text-xs font-semibold text-slate-600">{label}
+    <select name={name} defaultValue={value === null || value === undefined ? "inherit" : String(value)} className="form-input mt-1">
+      <option value="inherit">Heredar del plan</option>
+      <option value="true">Habilitar</option>
+      <option value="false">Deshabilitar</option>
+    </select>
+  </label>;
 }

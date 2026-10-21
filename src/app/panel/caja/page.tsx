@@ -21,7 +21,7 @@ const money = (amount: number) => new Intl.NumberFormat("es-CO", {
 }).format(amount);
 
 export default async function CashRegisterPage({ searchParams }: { searchParams: SearchParams }) {
-  const { supabase, business } = await getProfessionalContext();
+  const { supabase, business } = await getProfessionalContext("cash");
   const params = await searchParams;
   const date = isDate(params.date) ? params.date! : todayInZone(business.timezone);
   const appointmentCutoff = localDateToUtc(localDateAtOffset(date, 90), business.timezone).toISOString();

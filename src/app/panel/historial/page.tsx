@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { businessLocalDate, firstRelation, localDateToUtc, localDateAtOffset, formatBusinessDateTime } from "@/lib/dates";
-import { selectCurrentBusiness } from "@/lib/business-selection";
+import { getBusinessFeatureContext } from "@/lib/professional-access";
 
 type SearchParams = Promise<{ q?: string; from?: string; to?: string }>;
 const statusNames: Record<string, string> = {
@@ -13,13 +11,7 @@ const statusNames: Record<string, string> = {
 export default async function HistoryPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const query = (params.q ?? "").trim().slice(0, 80);
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: businesses, error: businessError } = await supabase.from("businesses")
-    .select("id, timezone").eq("owner_id", user.id).order("id");
-  const business = await selectCurrentBusiness(businesses ?? []);
-  if (businessError || !business) redirect("/onboarding");
+  const { supabase, business } = await getBusinessFeatureContext("customer_history");
 
   let customerIds: string[] | null = null;
   if (query) {

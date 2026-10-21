@@ -19,6 +19,14 @@ const subscriptionFormSchema = z.object({
   locationLimit: z.union([z.literal(""), z.coerce.number().int().min(0).max(100_000)]),
 });
 
+const planFeatureFormSchema = z.object({
+  plan: z.enum(["basic", "professional", "enterprise"]),
+  cashEnabled: z.boolean(),
+  reportsEnabled: z.boolean(),
+  customerHistoryEnabled: z.boolean(),
+  benefits: z.string().max(3000),
+});
+
 async function requireSuperAdmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -137,6 +145,9 @@ export async function updateSubscriptionAsSuperAdminAction(formData: FormData) {
     ? new Date(`${parsed.data.trialEnd}T23:59:59.999Z`).toISOString()
     : null;
   const admin = createAdminClient();
+  const { data: businesses, error: businessesError } = await admin.from("businesses")
+    .select("id").eq("owner_id", parsed.data.ownerId);
+  if (businessesError) throw new Error("No se pudieron consultar las sedes de la cuenta.");
   const { data: existing, error: readError } = await admin.from("business_subscriptions")
     .select("owner_id, enterprise_staff_limit, enterprise_location_limit")
     .eq("owner_id", parsed.data.ownerId).maybeSingle();
@@ -167,7 +178,69 @@ export async function updateSubscriptionAsSuperAdminAction(formData: FormData) {
     throw new Error("No se pudo guardar la suscripción. Revisa la migración 0008 y los límites del plan.");
   }
 
+  const overrides = (businesses ?? []).map((business) => ({
+    business_id: business.id,
+    cash_enabled: parseFeatureOverride(formData.get(`feature_${business.id}_cash`)),
+    reports_enabled: parseFeatureOverride(formData.get(`feature_${business.id}_reports`)),
+    customer_history_enabled: parseFeatureOverride(formData.get(`feature_${business.id}_history`)),
+    updated_at: new Date().toISOString(),
+  }));
+  if (overrides.length) {
+    const { error: overridesError } = await admin.from("business_feature_overrides")
+      .upsert(overrides, { onConflict: "business_id" });
+    if (overridesError) {
+      console.error("No se pudieron actualizar las funciones especiales de las sedes.", {
+        code: overridesError.code,
+        message: overridesError.message,
+        ownerId: parsed.data.ownerId,
+      });
+      throw new Error("Se actualizó el plan, pero no se pudieron guardar los accesos especiales de las sedes.");
+    }
+  }
+
   revalidatePath("/admin/suscripciones");
-  revalidatePath("/panel");
+  revalidatePath("/panel", "layout");
   redirect("/admin/suscripciones?saved=1");
+}
+
+export async function updatePlanFeatureCatalogAction(formData: FormData) {
+  await requireSuperAdmin();
+  const parsed = planFeatureFormSchema.safeParse({
+    plan: formData.get("plan"),
+    cashEnabled: formData.get("cashEnabled") === "on",
+    reportsEnabled: formData.get("reportsEnabled") === "on",
+    customerHistoryEnabled: formData.get("customerHistoryEnabled") === "on",
+    benefits: formData.get("benefits") ?? "",
+  });
+  if (!parsed.success) throw new Error("Revisa los beneficios y funciones del plan.");
+
+  const benefits = parsed.data.benefits.split(/\r?\n/)
+    .map((benefit) => benefit.trim())
+    .filter(Boolean);
+  const admin = createAdminClient();
+  const { error } = await admin.from("plan_feature_catalog").upsert({
+    plan: parsed.data.plan,
+    cash_enabled: parsed.data.cashEnabled,
+    reports_enabled: parsed.data.reportsEnabled,
+    customer_history_enabled: parsed.data.customerHistoryEnabled,
+    benefits,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "plan" });
+  if (error) {
+    console.error("No se pudo actualizar la definición del plan.", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new Error("No se pudo guardar la definición del plan.");
+  }
+  revalidatePath("/admin/suscripciones");
+  revalidatePath("/planes");
+  revalidatePath("/panel", "layout");
+  redirect("/admin/suscripciones?saved=features");
+}
+
+function parseFeatureOverride(value: FormDataEntryValue | null): boolean | null {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 }

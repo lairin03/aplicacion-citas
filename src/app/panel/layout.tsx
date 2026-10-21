@@ -3,6 +3,7 @@ import { PanelNav } from "@/components/panel/panel-nav";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 import { createClient } from "@/lib/supabase/server";
+import { getBusinessFeatures } from "@/lib/business-features";
 
 export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
   const supabase = await createClient();
@@ -42,7 +43,9 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
           businesses={businesses ?? []}
           activeBusinessId={business?.id ?? ""}
           canAddLocation={!!business}
-          hasProfessionalFeatures
+          hasCashFeature
+          hasReportsFeature
+          hasCustomerHistory
           isSuperAdmin
         />
         <main className="min-w-0 flex-1 px-4 pb-10 pt-6 sm:px-6 md:px-8 md:pt-8">
@@ -77,8 +80,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
   const canAddLocation = hasAccess
     && (subscription?.plan === "professional" || subscription?.plan === "enterprise")
     && (locationLimit === 0 || (businesses?.length ?? 0) < locationLimit);
-  const hasProfessionalFeatures = subscription?.plan === "professional"
-    && hasAccess;
+  const features = await getBusinessFeatures(supabase, business.id, subscription?.plan ?? "");
 
   return (
     <div className="min-h-screen bg-[#faf9f6] md:flex">
@@ -88,7 +90,9 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
         businesses={businesses ?? []}
         activeBusinessId={business.id}
         canAddLocation={canAddLocation}
-        hasProfessionalFeatures={hasProfessionalFeatures}
+        hasCashFeature={hasAccess && features.cash}
+        hasReportsFeature={hasAccess && features.reports}
+        hasCustomerHistory={hasAccess && features.customer_history}
         isSuperAdmin={false}
       />
       <main className="min-w-0 flex-1 px-4 pb-10 pt-6 sm:px-6 md:px-8 md:pt-8">

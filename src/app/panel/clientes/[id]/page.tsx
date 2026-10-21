@@ -1,21 +1,14 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { FeedbackForm } from "@/components/panel/feedback";
 import { updateCustomerNotesAction } from "@/app/actions/panel";
-import { createClient } from "@/lib/supabase/server";
 import { firstRelation, formatBusinessDateTime } from "@/lib/dates";
-import { selectCurrentBusiness } from "@/lib/business-selection";
+import { getBusinessFeatureContext } from "@/lib/professional-access";
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) notFound();
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: businesses, error: businessError } = await supabase.from("businesses")
-    .select("id, timezone").eq("owner_id", user.id).order("id");
-  const business = await selectCurrentBusiness(businesses ?? []);
-  if (businessError || !business) redirect("/onboarding");
+  const { supabase, business } = await getBusinessFeatureContext("customer_history");
 
   const [{ data: customer, error: customerError }, { data: appointments, error: appointmentsError }] = await Promise.all([
     supabase.from("customers").select("id, name, phone, notes, created_at")

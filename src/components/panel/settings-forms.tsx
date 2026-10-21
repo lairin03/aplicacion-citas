@@ -12,7 +12,6 @@ import {
   updateStaffEmailAction,
   updateServiceAction,
   updateBusinessAction,
-  updateHoursAction,
   deleteBlockedTimeAction,
   uploadBusinessLogoAction,
   removeBusinessLogoAction,
@@ -24,7 +23,6 @@ type Business = {
   whatsapp: string | null; address: string | null; timezone: string; logo_url: string | null;
   brand_color: string; font_family: "sans" | "serif" | "mono";
 };
-type Hours = { weekday: number; open_time: string | null; close_time: string | null; is_closed: boolean };
 type Service = { id: string; name: string; duration_minutes: number; price_cop: number; is_active: boolean };
 type StaffHours = { weekday: number; open_time: string | null; close_time: string | null; is_closed: boolean };
 type Staff = {
@@ -33,7 +31,7 @@ type Staff = {
 };
 type BlockedTime = { id: string; staff_id: string | null; starts_at: string; ends_at: string; reason: string | null; staff: { name: string } | null };
 type Props = {
-  business: Business; hours: Hours[]; services: Service[]; staff: Staff[];
+  business: Business; services: Service[]; staff: Staff[];
   blockedTimes: BlockedTime[]; canEditStaffProfiles: boolean;
 };
 const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -45,18 +43,15 @@ function Feedback({ state }: { state: ActionState }) {
   return null;
 }
 
-export function SettingsForms({ business, hours, services, staff, blockedTimes, canEditStaffProfiles }: Props) {
+export function SettingsForms({ business, services, staff, blockedTimes, canEditStaffProfiles }: Props) {
   const [businessState, businessAction, businessPending] = useActionState(updateBusinessAction, initialState);
-  const [hoursState, hoursAction, hoursPending] = useActionState(updateHoursAction, initialState);
   const [serviceState, serviceAction, servicePending] = useActionState(saveServiceAction, initialState);
   const [staffState, staffAction, staffPending] = useActionState(saveStaffAction, initialState);
   const [blockedState, blockedAction, blockedPending] = useActionState(createBlockedTimeAction, initialState);
-  const [slug, setSlug] = useState(business.slug);
   const [logoUrl, setLogoUrl] = useState(business.logo_url ?? "");
   const [logoPending, setLogoPending] = useState(false);
   const [logoFeedback, setLogoFeedback] = useState<ActionState>({});
   const publicUrl = `/b/${business.slug}`;
-  const dayHours = [...hours].sort((a, b) => a.weekday - b.weekday);
 
   async function uploadLogo(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
@@ -118,10 +113,13 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes, 
               <option value="otro">Otro</option>
             </select>
           </label>
-          <label className="text-sm font-medium">Enlace público
-            <div className="mt-2 flex items-center overflow-hidden rounded-xl border border-slate-200"><span className="bg-slate-50 px-3 py-3 text-slate-500">/b/</span>
-              <input name="slug" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} className="min-h-12 min-w-0 flex-1 px-3 outline-none" /></div>
-          </label>
+          <div className="text-sm font-medium">Enlace público único
+            <div className="mt-2 flex min-h-12 items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              <span className="border-r border-slate-200 bg-white px-3 py-3 text-slate-500">/b/</span>
+              <span className="min-w-0 flex-1 truncate px-3 font-mono text-sm text-slate-700">{business.slug}</span>
+              <span className="px-3 text-xs font-semibold text-slate-500">Permanente</span>
+            </div>
+          </div>
           <label className="text-sm font-medium">Teléfono<input name="phone" defaultValue={business.phone ?? ""} className="form-input" /></label>
           <label className="text-sm font-medium">WhatsApp<input name="whatsapp" defaultValue={business.whatsapp ?? ""} className="form-input" /></label>
           <label className="text-sm font-medium">Dirección<input name="address" defaultValue={business.address ?? ""} className="form-input" /></label>
@@ -173,38 +171,28 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes, 
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-        <h2 className="text-lg font-semibold">Horarios</h2>
-        <p className="mt-1 text-sm text-slate-600">Este es el horario base del negocio. En el plan Profesional, cada profesional puede tener un horario propio.</p>
-        <form action={hoursAction} className="mt-5 space-y-2">
-          {days.map((day, weekday) => {
-            const value = dayHours[weekday];
-            return <div key={day} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-              <span className="text-sm font-medium">{day}</span>
-              <input name={`open-${weekday}`} type="time" defaultValue={value?.open_time?.slice(0, 5) ?? "09:00"} className="min-h-10 rounded-lg border border-slate-200 px-2 text-sm" />
-              <input name={`close-${weekday}`} type="time" defaultValue={value?.close_time?.slice(0, 5) ?? "18:00"} className="min-h-10 rounded-lg border border-slate-200 px-2 text-sm" />
-              <label className="col-span-full flex items-center gap-2 text-xs text-slate-600 sm:col-span-1"><input name={`closed-${weekday}`} type="checkbox" defaultChecked={value?.is_closed ?? false} className="accent-amber-600" />Cerrado</label>
-            </div>;
-          })}
-          <button disabled={hoursPending} className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">{hoursPending ? "Guardando…" : "Guardar horarios"}</button>
-          <Feedback state={hoursState} />
-        </form>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Servicios</h2>
+        <p className="mt-1 text-sm text-slate-600">Define el nombre que verá la clienta, el tiempo requerido y el precio del servicio.</p>
         <div className="mt-4 divide-y divide-slate-100">
           {services.map((service) => <ServiceEditor key={service.id} service={service} />)}
         </div>
         <form action={serviceAction} className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-[1fr_150px_150px_auto]">
-          <input name="name" required placeholder="Nombre del servicio" className="form-input mt-0" />
-          <input name="duration" type="number" min="5" max="1440" required placeholder="Minutos" className="form-input mt-0" />
-          <input name="price" type="number" min="0" required placeholder="Precio COP" className="form-input mt-0" />
+          <label className="text-xs font-semibold text-slate-600">Nombre del servicio
+            <input name="name" required placeholder="Ej. Manicura semipermanente" className="form-input mt-1" />
+          </label>
+          <label className="text-xs font-semibold text-slate-600">Duración (minutos)
+            <input name="duration" type="number" min="5" max="1440" required placeholder="60" className="form-input mt-1" />
+          </label>
+          <label className="text-xs font-semibold text-slate-600">Precio (COP)
+            <input name="price" type="number" min="0" required placeholder="50000" className="form-input mt-1" />
+          </label>
           <button disabled={servicePending} className="min-h-12 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white">{servicePending ? "…" : "Agregar"}</button>
         </form><Feedback state={serviceState} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Profesionales</h2>
+        <p className="mt-1 text-sm text-slate-600">Cada profesional tiene su propio horario y los servicios que puede atender.</p>
         <div className="mt-4 divide-y divide-slate-100">
           {staff.map((person) => <div key={person.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
@@ -217,9 +205,13 @@ export function SettingsForms({ business, hours, services, staff, blockedTimes, 
           </div>)}
         </div>
         <form action={staffAction} className="mt-5 space-y-3 border-t border-slate-100 pt-5">
-          <input name="name" required placeholder="Nombre del profesional" className="form-input mt-0" />
-          <input name="email" type="email" autoComplete="email" required placeholder="Correo del profesional" className="form-input mt-0" />
-          <p className="text-sm font-medium">Servicios que ofrece</p>
+          <label className="block text-xs font-semibold text-slate-600">Nombre del profesional
+            <input name="name" required placeholder="Ej. María Pérez" className="form-input mt-1" />
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">Correo para recibir solicitudes de citas
+            <input name="email" type="email" autoComplete="email" required placeholder="correo@ejemplo.com" className="form-input mt-1" />
+          </label>
+          <p className="text-sm font-semibold">Servicios que ofrece</p>
           <div className="flex flex-wrap gap-3">{services.filter((service) => service.is_active).map((service) => <label key={service.id} className="flex items-center gap-2 text-sm"><input type="checkbox" name="serviceIds" value={service.id} className="accent-amber-600" />{service.name}</label>)}</div>
           <button disabled={staffPending} className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">{staffPending ? "Guardando…" : "Agregar profesional"}</button>
         </form><Feedback state={staffState} />
@@ -352,11 +344,17 @@ function ServiceEditor({ service }: { service: Service }) {
       <p className="text-sm text-slate-500">{service.duration_minutes} min · {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(service.price_cop)}</p>
       <form action={toggleServiceAction}><input type="hidden" name="serviceId" value={service.id} /><input type="hidden" name="active" value={String(!service.is_active)} /><button className={`rounded-full px-3 py-1.5 text-xs font-semibold ${service.is_active ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{service.is_active ? "Activo · Desactivar" : "Inactivo · Activar"}</button></form>
     </div>
-    <form action={action} className="grid gap-2 sm:grid-cols-[1fr_120px_140px_auto]">
+    <form action={action} className="grid items-end gap-2 sm:grid-cols-[1fr_150px_160px_auto]">
       <input type="hidden" name="serviceId" value={service.id} />
-      <input name="name" required defaultValue={service.name} className="form-input mt-0" />
-      <input name="duration" type="number" min="5" max="1440" required defaultValue={service.duration_minutes} className="form-input mt-0" />
-      <input name="price" type="number" min="0" required defaultValue={service.price_cop} className="form-input mt-0" />
+      <label className="text-xs font-semibold text-slate-600">Nombre
+        <input name="name" required defaultValue={service.name} className="form-input mt-1" />
+      </label>
+      <label className="text-xs font-semibold text-slate-600">Duración (minutos)
+        <input name="duration" type="number" min="5" max="1440" required defaultValue={service.duration_minutes} className="form-input mt-1" />
+      </label>
+      <label className="text-xs font-semibold text-slate-600">Precio (COP)
+        <input name="price" type="number" min="0" required defaultValue={service.price_cop} className="form-input mt-1" />
+      </label>
       <button disabled={pending} className="min-h-12 rounded-xl border border-slate-200 px-3 text-sm font-semibold disabled:opacity-60">{pending ? "…" : "Actualizar"}</button>
       {state.error && <p role="alert" className="text-sm text-red-700 sm:col-span-4">{state.error}</p>}
       {state.success && <p role="status" className="text-sm text-emerald-700 sm:col-span-4">{state.success}</p>}

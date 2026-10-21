@@ -44,7 +44,11 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
   if (userError || !user) redirect("/login");
   if (isConfirmedSuperAdmin(user)) redirect("/admin");
 
-  const [{ data: subscription, error: subscriptionError }, { count: businessCount, error: businessError }] = await Promise.all([
+  const [
+    { data: subscription, error: subscriptionError },
+    { count: businessCount, error: businessError },
+    { data: planCatalog, error: planCatalogError },
+  ] = await Promise.all([
     supabase.from("business_subscriptions")
       .select("plan, status, trial_ends_at, current_period_ends_at")
       .eq("owner_id", user.id)
@@ -52,8 +56,9 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
     supabase.from("businesses")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", user.id),
+    supabase.from("plan_feature_catalog").select("plan, benefits").order("plan"),
   ]);
-  if (subscriptionError || businessError) {
+  if (subscriptionError || businessError || planCatalogError) {
     throw new Error("No se pudo cargar el estado de los planes.");
   }
   if (!businessCount) redirect("/onboarding");
@@ -68,6 +73,10 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
     && !!process.env.WOMPI_INTEGRITY_SECRET
     && !!process.env.WOMPI_EVENTS_SECRET
     && !!process.env.APP_URL;
+  const planBenefits = new Map((planCatalog ?? []).map((entry) => [
+    entry.plan,
+    Array.isArray(entry.benefits) ? entry.benefits.filter((benefit): benefit is string => typeof benefit === "string") : [],
+  ]));
 
   return (
     <main className="min-h-screen bg-[#f3f9fd] px-5 py-8 text-slate-950 sm:px-8 sm:py-12">
@@ -117,7 +126,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
               </div>
               <p className="mt-1"><span className="text-4xl font-black">{plan.price}</span><span className={plan.id === "professional" ? "text-slate-300" : "text-slate-500"}>/mes COP</span></p>
               <ul className="mt-7 flex-1 space-y-3">
-                {plan.features.map((feature) => (
+                {(planBenefits.get(plan.id) ?? [...plan.features]).map((feature) => (
                   <li key={feature} className={`flex gap-3 text-sm leading-5 ${plan.id === "professional" ? "text-slate-200" : "text-slate-700"}`}>
                     <Check size={17} className="mt-0.5 shrink-0 text-sky-400" />{feature}
                   </li>
@@ -141,7 +150,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
             <h2 className="text-2xl font-black">Empresarial</h2>
             <p className="mt-3 text-3xl font-black">Tarifa personalizada</p>
             <ul className="mt-7 flex-1 space-y-3 text-sm leading-5 text-slate-700">
-              {["Múltiples sedes y equipos avanzados", "Reportes ejecutivos y soporte prioritario", "Implementación y acompañamiento comercial"].map((feature) => (
+              {(planBenefits.get("enterprise") ?? ["Múltiples sedes y equipos avanzados", "Reportes ejecutivos y soporte prioritario", "Implementación y acompañamiento comercial"]).map((feature) => (
                 <li key={feature} className="flex gap-3"><Check size={17} className="shrink-0 text-sky-600" />{feature}</li>
               ))}
             </ul>

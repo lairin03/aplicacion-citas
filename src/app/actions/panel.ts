@@ -12,6 +12,7 @@ import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 import { isValidTimeZone } from "@/lib/validation/timezone";
 import { businessTypes } from "@/lib/validation/auth";
 import type { ActionState } from "@/app/actions/auth";
+import { getBusinessFeatureContext } from "@/lib/professional-access";
 
 const appointmentStatusSchema = z.enum([
   "pendiente", "confirmada", "completada", "cancelada", "no_asistió",
@@ -91,7 +92,7 @@ export async function updateCustomerNotesAction(
   const id = z.uuid().safeParse(formData.get("customerId"));
   const notes = z.string().trim().max(2000).safeParse(formData.get("notes"));
   if (!id.success || !notes.success) return { error: "Las notas no son válidas." };
-  const { supabase, business } = await getOwnerBusiness();
+  const { supabase, business } = await getBusinessFeatureContext("customer_history");
   const { error } = await supabase.from("customers").update({ notes: notes.data || null })
     .eq("id", id.data).eq("business_id", business.id);
   if (error) return { error: "No se pudieron guardar las notas del cliente." };
@@ -106,7 +107,6 @@ export async function updateBusinessAction(
   const { supabase, business } = await getOwnerBusiness();
   const parsed = z.object({
     name: z.string().trim().min(2).max(120),
-    slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
     type: z.enum(businessTypes),
     phone: z.string().trim().max(30),
     whatsapp: z.string().trim().max(30),
@@ -121,19 +121,8 @@ export async function updateBusinessAction(
   }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos." };
 
-  const { data: current } = await supabase.from("businesses").select("slug")
-    .eq("id", business.id).single();
-  if (parsed.data.slug !== current?.slug) {
-    const { data: available, error } = await supabase.rpc("is_business_slug_available", {
-      candidate: parsed.data.slug,
-    });
-    if (error) return { error: "No se pudo validar el enlace público." };
-    if (!available) return { error: "Ese enlace ya está en uso." };
-  }
-
   const { error } = await supabase.from("businesses").update({
     name: parsed.data.name,
-    slug: parsed.data.slug,
     type: parsed.data.type,
     phone: parsed.data.phone || null,
     whatsapp: parsed.data.whatsapp || null,

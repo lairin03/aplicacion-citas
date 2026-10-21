@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0017` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Aplicar, en orden, las migraciones `0001` a `0018` de `supabase/migrations/` desde el SQL Editor de Supabase.
 
 ## Ejecutar localmente
 
@@ -82,3 +82,5 @@ Ejecuta la prueba únicamente contra un proyecto de prueba: crea y elimina regis
 Para activar el superusuario, registra en Supabase Auth la cuenta `delaranslairin9@gmail.com` y confirma su correo. La aplicación concede acceso administrativo solo a esa identidad autenticada; no se configura ni expone una contraseña desde el código. Desde el panel se consultan las suscripciones y se cambian plan/estado/fechas. Los topes de profesionales y sedes pueden heredarse del plan (campo vacío), personalizarse o quitarse (valor `0`). Desde la lista también se agrega una sede a cuentas Profesional y Empresarial; la acción valida la identidad superadmin y vuelve a comprobar los límites de la suscripción en la base de datos. La migración `0010` amplía los tipos de negocio y crea la función protegida para esa operación.
 
 El superadministrador tiene acceso funcional equivalente al plan Profesional sin vencimiento ni límites de profesionales o sedes. Esta excepción se verifica tanto en el servidor como en la base de datos para el usuario autenticado con ese correo confirmado; no se aplica a otras cuentas ni se controla únicamente por el enlace de navegación.
+
+En `/admin/suscripciones`, el superadministrador configura los accesos y beneficios descriptivos por plan y puede establecer excepciones por negocio para Caja, Reportes e Historial de clientes. El slug de cada negocio es permanente y la migración `0018` bloquea su modificación también desde la base de datos. La misma migración agrega el módulo de tickets de soporte (`/panel/soporte` y `/admin/tickets`) y actualiza la política de Caja para respetar los accesos efectivos del plan o la excepción configurada.
