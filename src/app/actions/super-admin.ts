@@ -25,6 +25,19 @@ const planFeatureFormSchema = z.object({
   reportsEnabled: z.boolean(),
   customerHistoryEnabled: z.boolean(),
   benefits: z.string().max(3000),
+  monthlyPriceCop: z.preprocess(
+    (value) => value === "" ? null : value,
+    z.coerce.number().int().min(1_000).max(1_000_000_000).nullable(),
+  ),
+  regularPriceCop: z.preprocess(
+    (value) => value === "" ? null : value,
+    z.coerce.number().int().min(1_000).max(1_000_000_000).nullable(),
+  ),
+}).refine((data) => data.plan === "enterprise"
+  ? data.monthlyPriceCop === null && data.regularPriceCop === null
+  : data.monthlyPriceCop !== null
+    && (data.regularPriceCop === null || data.regularPriceCop >= data.monthlyPriceCop), {
+  message: "Configura un precio mensual válido y un precio de referencia igual o superior.",
 });
 
 async function requireSuperAdmin() {
@@ -211,8 +224,10 @@ export async function updatePlanFeatureCatalogAction(formData: FormData) {
     reportsEnabled: formData.get("reportsEnabled") === "on",
     customerHistoryEnabled: formData.get("customerHistoryEnabled") === "on",
     benefits: formData.get("benefits") ?? "",
+    monthlyPriceCop: formData.get("monthlyPriceCop") ?? "",
+    regularPriceCop: formData.get("regularPriceCop") ?? "",
   });
-  if (!parsed.success) throw new Error("Revisa los beneficios y funciones del plan.");
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Revisa los precios, beneficios y funciones del plan.");
 
   const benefits = parsed.data.benefits.split(/\r?\n/)
     .map((benefit) => benefit.trim())
@@ -224,6 +239,8 @@ export async function updatePlanFeatureCatalogAction(formData: FormData) {
     reports_enabled: parsed.data.reportsEnabled,
     customer_history_enabled: parsed.data.customerHistoryEnabled,
     benefits,
+    monthly_price_cop: parsed.data.monthlyPriceCop,
+    regular_price_cop: parsed.data.regularPriceCop,
     updated_at: new Date().toISOString(),
   }, { onConflict: "plan" });
   if (error) {

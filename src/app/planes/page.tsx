@@ -9,9 +9,6 @@ const plans = [
   {
     id: "basic",
     name: "Básico",
-    previous: "$49.900",
-    price: "$29.900",
-    discount: "-40%",
     features: [
       "1 sede y 1 profesional",
       "Reservas online ilimitadas",
@@ -22,9 +19,6 @@ const plans = [
   {
     id: "professional",
     name: "Profesional",
-    previous: "$119.900",
-    price: "$89.900",
-    discount: "-25%",
     features: [
       "Hasta 2 sedes y 3 profesionales por sede (6 en total)",
       "Base de clientes y segmentación",
@@ -56,7 +50,9 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
     supabase.from("businesses")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", user.id),
-    supabase.from("plan_feature_catalog").select("plan, benefits").order("plan"),
+    supabase.from("plan_feature_catalog")
+      .select("plan, benefits, monthly_price_cop, regular_price_cop")
+      .order("plan"),
   ]);
   if (subscriptionError || businessError || planCatalogError) {
     throw new Error("No se pudo cargar el estado de los planes.");
@@ -76,6 +72,10 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
   const planBenefits = new Map((planCatalog ?? []).map((entry) => [
     entry.plan,
     Array.isArray(entry.benefits) ? entry.benefits.filter((benefit): benefit is string => typeof benefit === "string") : [],
+  ]));
+  const planPricing = new Map((planCatalog ?? []).map((entry) => [
+    entry.plan,
+    { monthly: entry.monthly_price_cop, regular: entry.regular_price_cop },
   ]));
 
   return (
@@ -120,11 +120,33 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
             <article key={plan.id} className={`relative flex flex-col rounded-3xl p-6 sm:p-8 ${plan.id === "professional" ? "border-2 border-sky-300 bg-slate-950 text-white shadow-2xl shadow-sky-950/15 lg:-my-3 lg:py-11" : "border border-slate-200 bg-white"}`}>
               {plan.id === "professional" && <span className="absolute -top-3 left-6 rounded-full bg-sky-300 px-4 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950">Más elegido</span>}
               <h2 className="text-2xl font-black">{plan.name}</h2>
-              <div className="mt-5 flex items-center gap-2 text-sm text-slate-500">
-                <span className="line-through">{plan.previous}</span>
-                <span className="rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-950">{plan.discount}</span>
-              </div>
-              <p className="mt-1"><span className="text-4xl font-black">{plan.price}</span><span className={plan.id === "professional" ? "text-slate-300" : "text-slate-500"}>/mes COP</span></p>
+              {(() => {
+                const pricing = planPricing.get(plan.id);
+                const monthly = pricing?.monthly;
+                const regular = pricing?.regular;
+                const currency = new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  maximumFractionDigits: 0,
+                });
+                const discount = monthly && regular && regular > monthly
+                  ? Math.round((1 - monthly / regular) * 100)
+                  : 0;
+                return (
+                  <>
+                    {discount > 0 ? (
+                      <div className="mt-5 flex items-center gap-2 text-sm text-slate-500">
+                        <span className="line-through">{currency.format(regular!)}</span>
+                        <span className="rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-950">-{discount}%</span>
+                      </div>
+                    ) : <div className="mt-5" />}
+                    <p className="mt-1">
+                      <span className="text-4xl font-black">{monthly ? currency.format(monthly) : "Precio no disponible"}</span>
+                      {monthly && <span className={plan.id === "professional" ? "text-slate-300" : "text-slate-500"}>/mes COP</span>}
+                    </p>
+                  </>
+                );
+              })()}
               <ul className="mt-7 flex-1 space-y-3">
                 {(planBenefits.get(plan.id) ?? [...plan.features]).map((feature) => (
                   <li key={feature} className={`flex gap-3 text-sm leading-5 ${plan.id === "professional" ? "text-slate-200" : "text-slate-700"}`}>
@@ -132,16 +154,20 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
                   </li>
                 ))}
               </ul>
-              {wompiConfigured ? (
+              {wompiConfigured && (planPricing.get(plan.id)?.monthly ?? 0) >= 1_000 ? (
                 <form action={startWompiCheckoutAction} className="mt-8">
                   <input type="hidden" name="plan" value={plan.id} />
                   <button type="submit" className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 font-bold transition ${plan.id === "professional" ? "bg-sky-300 text-slate-950 hover:bg-sky-200" : "bg-slate-950 text-white hover:bg-slate-800"}`}>
                     <CreditCard size={17} /> Pagar con Wompi
                   </button>
                 </form>
-              ) : (
+              ) : !wompiConfigured ? (
                 <p className="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm font-semibold text-amber-950">
                   Wompi aún no está configurado en el servidor.
+                </p>
+              ) : (
+                <p className="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm font-semibold text-amber-950">
+                  El precio de este plan aún no está configurado.
                 </p>
               )}
             </article>

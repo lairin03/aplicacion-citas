@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0020` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Aplicar, en orden, las migraciones `0001` a `0021` de `supabase/migrations/` desde el SQL Editor de Supabase.
 
 ## Ejecutar localmente
 
@@ -83,4 +83,4 @@ Para activar el superusuario, registra en Supabase Auth la cuenta `delaranslairi
 
 El superadministrador tiene acceso funcional equivalente al plan Profesional sin vencimiento ni límites de profesionales o sedes. Esta excepción se verifica tanto en el servidor como en la base de datos para el usuario autenticado con ese correo confirmado; no se aplica a otras cuentas ni se controla únicamente por el enlace de navegación.
 
-En `/admin/suscripciones`, el superadministrador configura los accesos y beneficios descriptivos por plan y puede establecer excepciones por negocio para Caja, Reportes e Historial de clientes. El slug de cada negocio es permanente y la migración `0018` bloquea su modificación también desde la base de datos. La misma migración agrega el módulo de tickets de soporte (`/panel/soporte` y `/admin/tickets`) y actualiza la política de Caja para respetar los accesos efectivos del plan o la excepción configurada.
+En `/admin/suscripciones`, el superadministrador configura los precios mensuales y precios de referencia en COP, accesos y beneficios descriptivos para Básico y Profesional. Esos precios se usan tanto en `/planes` como al generar el checkout firmado de Wompi; Empresarial conserva tarifa personalizada. También puede establecer excepciones por negocio para Caja, Reportes e Historial de clientes. El slug de cada negocio es permanente y la migración `0018` bloquea su modificación también desde la base de datos. La misma migración agrega el módulo de tickets de soporte (`/panel/soporte` y `/admin/tickets`) y actualiza la política de Caja para respetar los accesos efectivos del plan o la excepción configurada. La migración `0021` agrega la configuración de precios de los planes.

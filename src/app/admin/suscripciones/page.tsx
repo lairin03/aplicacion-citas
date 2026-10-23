@@ -26,7 +26,9 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
     admin.from("businesses")
       .select("id, owner_id, name, slug")
       .order("name"),
-    admin.from("plan_feature_catalog").select("plan, cash_enabled, reports_enabled, customer_history_enabled, benefits").order("plan"),
+    admin.from("plan_feature_catalog")
+      .select("plan, cash_enabled, reports_enabled, customer_history_enabled, benefits, monthly_price_cop, regular_price_cop")
+      .order("plan"),
     admin.from("business_feature_overrides")
       .select("business_id, cash_enabled, reports_enabled, customer_history_enabled"),
   ]);
@@ -66,14 +68,30 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
       </header>
       {params.saved === "1" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Suscripción actualizada.</p>}
       {params.saved === "location" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Sede creada correctamente.</p>}
-      {params.saved === "features" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Funciones y beneficios de los planes actualizados.</p>}
+      {params.saved === "features" && <p role="status" className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Precios, funciones y beneficios de los planes actualizados.</p>}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-black">Qué incluye cada plan</h2>
-        <p className="mt-1 text-sm text-slate-600">Configura los accesos predeterminados y los beneficios descriptivos que se mostrarán para cada plan. Una excepción por sede puede reemplazar estos accesos.</p>
+        <p className="mt-1 text-sm text-slate-600">Configura los precios en COP, accesos predeterminados y beneficios de cada plan. Una excepción por sede puede reemplazar los accesos.</p>
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
           {(planFeatures ?? []).map((plan) => <form key={plan.plan} action={updatePlanFeatureCatalogAction} className="rounded-xl border border-slate-200 p-4">
             <input type="hidden" name="plan" value={plan.plan} />
             <h3 className="font-bold">{planLabels[plan.plan as keyof typeof planLabels]}</h3>
+            {plan.plan === "enterprise" ? (
+              <>
+                <input type="hidden" name="monthlyPriceCop" value="" />
+                <input type="hidden" name="regularPriceCop" value="" />
+                <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Precio personalizado, gestionado por ventas.</p>
+              </>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="block text-xs font-semibold text-slate-600">Precio mensual (COP)
+                  <input name="monthlyPriceCop" type="number" min="1000" max="1000000000" step="100" required defaultValue={plan.monthly_price_cop ?? ""} className="form-input mt-1" />
+                </label>
+                <label className="block text-xs font-semibold text-slate-600">Precio de referencia (opcional)
+                  <input name="regularPriceCop" type="number" min="1000" max="1000000000" step="100" defaultValue={plan.regular_price_cop ?? ""} className="form-input mt-1" />
+                </label>
+              </div>
+            )}
             <div className="mt-3 space-y-2">
               <FeatureCheckbox name="cashEnabled" checked={plan.cash_enabled} label="Caja" />
               <FeatureCheckbox name="reportsEnabled" checked={plan.reports_enabled} label="Reportes" />

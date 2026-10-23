@@ -7,11 +7,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
-const plans = {
-  basic: { amountInCents: 2_990_000 },
-  professional: { amountInCents: 8_990_000 },
-} as const;
-
 export async function startWompiCheckoutAction(formData: FormData) {
   const parsedPlan = z.enum(["basic", "professional"]).safeParse(formData.get("plan"));
   if (!parsedPlan.success) throw new Error("El plan seleccionado no es válido.");
@@ -58,9 +53,26 @@ export async function startWompiCheckoutAction(formData: FormData) {
   if (!business) redirect("/onboarding");
 
   const plan = parsedPlan.data;
-  const amountInCents = plans[plan].amountInCents;
-  const reference = `AC${randomBytes(16).toString("hex")}`;
   const admin = createAdminClient();
+  const { data: planPricing, error: planPricingError } = await admin
+    .from("plan_feature_catalog")
+    .select("monthly_price_cop")
+    .eq("plan", plan)
+    .maybeSingle();
+  if (planPricingError) {
+    console.error("No se pudo consultar el precio del plan para Wompi.", {
+      code: planPricingError.code,
+      message: planPricingError.message,
+      plan,
+    });
+    throw new Error("No se pudo consultar el precio del plan. Intenta nuevamente.");
+  }
+  if (!planPricing || !Number.isSafeInteger(planPricing.monthly_price_cop)
+    || planPricing.monthly_price_cop < 1_000) {
+    throw new Error("El precio de este plan no está configurado correctamente.");
+  }
+  const amountInCents = planPricing.monthly_price_cop * 100;
+  const reference = `AC${randomBytes(16).toString("hex")}`;
   const { error: intentError } = await admin.from("billing_payment_intents").insert({
     reference,
     owner_id: user.id,
