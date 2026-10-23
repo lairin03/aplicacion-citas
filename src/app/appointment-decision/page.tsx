@@ -74,7 +74,7 @@ export default async function AppointmentDecisionPage({ searchParams }: { search
 
   return <main className="flex min-h-screen items-center justify-center bg-sky-50 px-4 py-8 text-slate-950">
     <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-      <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Agenda Clara · Aprobación de cita</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Agenda Laii · Aprobación de cita</p>
       <h1 className="mt-3 text-2xl font-black">Solicitud para {business.name}</h1>
       <div className="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm">
         <p><strong>Cliente:</strong> {customer.name}</p>

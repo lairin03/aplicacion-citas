@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-2xl px-5 py-10 sm:py-16">
-      <p className="text-sm font-semibold text-amber-700">AGENDA CLARA · CONFIGURACIÓN INICIAL</p>
+      <p className="text-sm font-semibold text-amber-700">AGENDA Laii · CONFIGURACIÓN INICIAL</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight">Prepara tu agenda</h1>
       <p className="mt-2 mb-8 text-slate-600">Crea el enlace de reservas y configura tu primer servicio.</p>
       <BusinessForm />

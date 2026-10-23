@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, CalendarCheck, Check, Clock3, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { ArrowDown, ArrowRight, CalendarCheck, Check, Clock3, MessageCircle, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+
+const salesWhatsAppUrl = "https://wa.me/573337283745";
 
 const benefits = [
   { icon: CalendarCheck, title: "Tu agenda, en orden", text: "Administra las citas y el equipo desde un solo lugar." },
@@ -46,7 +48,7 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f3f9fd] text-slate-950">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-        <Link href="/" className="text-xl font-black tracking-tight">Agenda Clara<span className="text-sky-500">.</span></Link>
+        <Link href="/" className="text-xl font-black tracking-tight">Agenda Laii<span className="text-sky-500">.</span></Link>
         <nav className="flex items-center gap-3 text-sm sm:gap-6">
           <Link href="#planes" className="hidden font-semibold text-slate-700 hover:text-slate-950 sm:inline">Planes</Link>
           <Link href="/login" className="font-semibold text-slate-700 hover:text-slate-950">Iniciar sesión</Link>
@@ -71,6 +73,9 @@ export default function Home() {
               Prueba gratis por 5 días <ArrowRight size={18} />
             </Link>
             <a href="#planes" className="inline-flex items-center gap-2 font-semibold text-slate-600 hover:text-slate-950">Conocer planes <ArrowDown size={16} /></a>
+            <a href={`${salesWhatsAppUrl}?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20Agenda%20Laii`} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 font-semibold text-emerald-800 transition hover:bg-emerald-50">
+              <MessageCircle size={18} /> Escríbenos por WhatsApp
+            </a>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-slate-500">
             <span className="inline-flex items-center gap-1.5"><Check size={16} className="text-sky-700" /> 5 días con Profesional</span>
@@ -150,7 +155,7 @@ export default function Home() {
                 <li key={feature} className="flex gap-3 text-sm leading-5 text-slate-700"><Check size={17} className="mt-0.5 shrink-0 text-sky-600" />{feature}</li>
               ))}
             </ul>
-            <a href="https://wa.me/573042357606?text=Hola%2C%20quiero%20conocer%20el%20plan%20Empresarial%20de%20Agenda%20Clara" target="_blank" rel="noreferrer" className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-950 px-4 font-bold transition hover:bg-sky-100">
+            <a href={`${salesWhatsAppUrl}?text=Hola%2C%20quiero%20conocer%20el%20plan%20Empresarial%20de%20Agenda%20Laii`} target="_blank" rel="noreferrer" className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-950 px-4 font-bold transition hover:bg-sky-100">
               Hablar con ventas <ArrowRight size={17} />
             </a>
           </article>

@@ -37,7 +37,7 @@ export default async function BookingPage({ params }: { params: Promise<{ slug: 
     <main className="min-h-screen bg-[#faf9f6] pb-12" style={{ fontFamily }}>
       <header className="bg-slate-950 px-5 pb-10 pt-7 text-white sm:pb-14">
         <div className="mx-auto max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[.2em]" style={{ color: business.brand_color }}>Agenda Clara</p>
+          <p className="text-xs font-semibold uppercase tracking-[.2em]" style={{ color: business.brand_color }}>Agenda Laii</p>
           <div className="mt-5 flex items-center gap-4">
             {business.logo_url
               ? isPdfLogo(business.logo_url)

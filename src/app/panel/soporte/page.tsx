@@ -52,7 +52,7 @@ export default async function SupportPage() {
         </header>
         <div className="mt-4 space-y-3">
           {(messages ?? []).filter((message) => message.ticket_id === ticket.id).map((message) => <div key={message.id} className={`rounded-xl p-3 ${message.author_role === "admin" ? "bg-sky-50" : "bg-slate-50"}`}>
-            <p className="text-xs font-bold text-slate-600">{message.author_role === "admin" ? "Soporte Agenda Clara" : "Tu negocio"} · {new Date(message.created_at).toLocaleString("es-CO")}</p>
+            <p className="text-xs font-bold text-slate-600">{message.author_role === "admin" ? "Soporte Agenda Laii" : "Tu negocio"} · {new Date(message.created_at).toLocaleString("es-CO")}</p>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{message.body}</p>
           </div>)}
         </div>

@@ -86,7 +86,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
         </Link>
 
         <header className="mx-auto mt-10 max-w-3xl text-center">
-          <p className="text-sm font-black uppercase tracking-[.2em] text-sky-700">Agenda Clara</p>
+          <p className="text-sm font-black uppercase tracking-[.2em] text-sky-700">Agenda Laii</p>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
             {trialActive ? "Elige tu plan" : paidActive ? "Tu plan y facturación" : "Activa tu agenda"}
           </h1>
@@ -180,7 +180,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
                 <li key={feature} className="flex gap-3"><Check size={17} className="shrink-0 text-sky-600" />{feature}</li>
               ))}
             </ul>
-            <a href="https://wa.me/573042357606?text=Hola%2C%20quiero%20conocer%20el%20plan%20Empresarial%20de%20Agenda%20Clara" target="_blank" rel="noreferrer" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-slate-950 px-4 font-bold transition hover:bg-sky-100">
+            <a href="https://wa.me/573042357606?text=Hola%2C%20quiero%20conocer%20el%20plan%20Empresarial%20de%20Agenda%20Laii" target="_blank" rel="noreferrer" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-slate-950 px-4 font-bold transition hover:bg-sky-100">
               Hablar con ventas
             </a>
           </article>

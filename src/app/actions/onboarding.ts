@@ -72,7 +72,7 @@ export async function createBusinessAction(
       : createError.message.includes("PLAN_LIMIT_LOCATIONS")
         ? "Tu plan no incluye otra sede. Consulta los planes para ampliar el límite."
         : createError.message.includes("PLAN_EXPIRED")
-          ? "Tu prueba terminó. Elige un plan para seguir usando Agenda Clara."
+          ? "Tu prueba terminó. Elige un plan para seguir usando Agenda Laii."
       : "No se pudo crear el negocio. Verifica los datos e inténtalo de nuevo." };
   }
 

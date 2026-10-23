@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agenda Clara | Citas para negocios de belleza",
+  title: "Agenda Laii | Citas para negocios de belleza",
   description: "Agenda y reservas online para cualquier profesional que trabaja por citas: belleza, consultorios y profesionales independientes.",
 };
 

@@ -1,4 +1,4 @@
-# Agenda Clara
+# Agenda Laii
 
 Agenda y reservas en línea para profesionales que trabajan por citas, incluidos negocios de belleza, lashistas, consultorios y profesionales independientes. Interfaz y validaciones en español, Next.js App Router, TypeScript, Tailwind y Supabase.
 
@@ -24,9 +24,9 @@ Los pagos de Básico y Profesional son mensuales y manuales: el cliente vuelve a
 
 ### Aprobación de citas y notificaciones
 
-Cada profesional tiene su propio correo, que se registra al crear el negocio o la sede y se puede editar en Configuración → Profesionales. Las solicitudes se envían a ese correo; las cuentas existentes deben completar el campo antes de aparecer como disponibles para nuevas reservas. Para enviar el correo, configura en las variables del servidor `RESEND_API_KEY` con una llave de Resend, `NOTIFICATION_FROM_EMAIL` con el remitente central verificado en Resend (por ejemplo, `Agenda Clara <citas@tu-dominio.com>`) y `APP_URL` con el dominio público HTTPS de la aplicación. `NOTIFICATION_FROM_EMAIL` es el remitente de Agenda Clara; el correo de cada profesional es el destinatario. El enlace de decisión vence en 24 horas, es de un solo uso y abre una página que pide confirmar la acción para evitar que los escáneres de enlaces de correo acepten una cita por accidente.
+Cada profesional tiene su propio correo, que se registra al crear el negocio o la sede y se puede editar en Configuración → Profesionales. Las solicitudes se envían a ese correo; las cuentas existentes deben completar el campo antes de aparecer como disponibles para nuevas reservas. Para enviar el correo, configura en las variables del servidor `RESEND_API_KEY` con una llave de Resend, `NOTIFICATION_FROM_EMAIL` con el remitente central verificado en Resend (por ejemplo, `Agenda Laii <citas@tu-dominio.com>`) y `APP_URL` con el dominio público HTTPS de la aplicación. `NOTIFICATION_FROM_EMAIL` es el remitente de Agenda Laii; el correo de cada profesional es el destinatario. El enlace de decisión vence en 24 horas, es de un solo uso y abre una página que pide confirmar la acción para evitar que los escáneres de enlaces de correo acepten una cita por accidente.
 
-La solicitud se envía al correo del profesional. Al aceptar o rechazar desde el enlace, Agenda Clara actualiza el estado y envía a la clienta un WhatsApp con el resultado y los datos de la cita. El formulario público solicita consentimiento para estos mensajes. Configura `WHAPI_API_URL` (por defecto `https://gate.whapi.cloud`) y `WHAPI_TOKEN` como variables secretas del servidor. El token nunca debe exponerse al navegador ni guardarse en el repositorio. La migración `0015` amplía el registro de entregas y prepara el envío para ambos resultados. Si Whapi falla, la decisión de la cita se conserva y la página informa que no se pudo enviar la notificación.
+La solicitud se envía al correo del profesional. Al aceptar o rechazar desde el enlace, Agenda Laii actualiza el estado y envía a la clienta un WhatsApp con el resultado y los datos de la cita. El formulario público solicita consentimiento para estos mensajes. Configura `WHAPI_API_URL` (por defecto `https://gate.whapi.cloud`) y `WHAPI_TOKEN` como variables secretas del servidor. El token nunca debe exponerse al navegador ni guardarse en el repositorio. La migración `0015` amplía el registro de entregas y prepara el envío para ambos resultados. Si Whapi falla, la decisión de la cita se conserva y la página informa que no se pudo enviar la notificación.
 
 ```powershell
 npm run dev
