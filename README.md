@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0018` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Aplicar, en orden, las migraciones `0001` a `0020` de `supabase/migrations/` desde el SQL Editor de Supabase.
 
 ## Ejecutar localmente
 
