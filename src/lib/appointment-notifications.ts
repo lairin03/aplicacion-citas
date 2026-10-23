@@ -6,6 +6,8 @@ import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const APP_BRAND_NAME = "Laii Agenda";
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;",
@@ -78,8 +80,9 @@ export async function sendAppointmentApprovalEmail(input: {
       body: JSON.stringify({
         from,
         to: [input.recipientEmail],
-        subject: `Nueva solicitud de cita para ${input.businessName}`,
+        subject: `${APP_BRAND_NAME}: nueva solicitud de cita para ${input.businessName}`,
         html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0f172a">
+          <p style="color:#0369a1;font-weight:bold">${APP_BRAND_NAME}</p>
           <h1>Nueva solicitud de cita</h1>
           <p><strong>${safe.customerName}</strong> solicita una cita en <strong>${safe.businessName}</strong>.</p>
           <ul>
@@ -155,8 +158,8 @@ export async function sendAppointmentDecisionWhatsApp(input: {
       const endpoint = new URL("/messages/text", apiUrl);
       if (endpoint.protocol !== "https:") throw new Error("WHAPI_API_URL debe usar HTTPS.");
       const messageBody = input.decision === "confirmada"
-        ? `Hola ${input.customerName}. Tu cita en ${input.businessName} fue confirmada.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora: ${localDateTime}\nProfesional: ${input.staffName}\n\n¡Te esperamos!`
-        : `Hola ${input.customerName}. No fue posible aceptar tu solicitud de cita en ${input.businessName}.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora solicitada: ${localDateTime}\nProfesional: ${input.staffName}\n\nPor favor, elige otro horario o comunícate con el negocio.`;
+        ? `${APP_BRAND_NAME}\n\nHola ${input.customerName}. Tu cita en ${input.businessName} fue confirmada.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora: ${localDateTime}\nProfesional: ${input.staffName}\n\n¡Te esperamos!`
+        : `${APP_BRAND_NAME}\n\nHola ${input.customerName}. No fue posible aceptar tu solicitud de cita en ${input.businessName}.\n\nServicio: ${input.serviceNames.join(", ")}\nFecha y hora solicitada: ${localDateTime}\nProfesional: ${input.staffName}\n\nPor favor, elige otro horario o comunícate con el negocio.`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
