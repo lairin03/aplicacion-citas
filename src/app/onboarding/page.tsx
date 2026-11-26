@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BusinessForm } from "@/components/onboarding/business-form";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 
 export default async function OnboardingPage() {
   await connection();
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: business } = await supabase
+  const { data: business } = await db
     .from("businesses")
     .select("id")
     .eq("owner_id", user.id)

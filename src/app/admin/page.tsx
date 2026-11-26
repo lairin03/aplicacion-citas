@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 export default async function SuperAdminDashboardPage() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
 

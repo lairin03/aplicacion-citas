@@ -4,7 +4,7 @@ import { CalendarCheck, CircleDollarSign, ExternalLink, Scissors, UsersRound } f
 import { formatInTimeZone } from "date-fns-tz";
 import { AppointmentStatusForm } from "@/components/panel/appointment-status-form";
 import { currentMonthRange, currentWeekRange, businessLocalDate, firstRelation, formatBusinessDateTime, localCalendarDate, localDateAtOffset, localDateToUtc, monthDays } from "@/lib/dates";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
@@ -19,17 +19,17 @@ function currency(value: number) {
 }
 
 export default async function PanelPage({ searchParams }: { searchParams: Search }) {
-  const supabase = await createClient();
+  const db = await createClient();
   const now = new Date();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) redirect("/login");
   const isAdmin = isConfirmedSuperAdmin(user);
-  const { data: businesses, error: businessError } = await supabase.from("businesses")
+  const { data: businesses, error: businessError } = await db.from("businesses")
     .select("id, name, slug, timezone").eq("owner_id", user.id).order("name");
   const business = await selectCurrentBusiness(businesses ?? []);
   if (businessError) throw new Error("No se pudieron consultar las sedes del negocio.");
   if (!business) redirect(isAdmin ? "/admin" : "/onboarding");
-  const { data: subscription, error: subscriptionError } = await supabase.from("business_subscriptions")
+  const { data: subscription, error: subscriptionError } = await db.from("business_subscriptions")
     .select("plan, status, trial_ends_at").eq("owner_id", user.id).maybeSingle();
   if (subscriptionError) throw new Error("No se pudo consultar el estado del plan.");
   const trialDaysLeft = subscription?.status === "trial" && subscription.trial_ends_at
@@ -46,14 +46,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Search
       ? currentWeekRange(today, business.timezone)
       : currentMonthRange(today, business.timezone);
 
-  let appointmentsQuery = supabase.from("appointments")
+  let appointmentsQuery = db.from("appointments")
     .select("id, starts_at, ends_at, status, notes, customer_id, customers(name, phone), services(name, price_cop, duration_minutes), appointment_services(services(name, price_cop)), staff(id, name)")
     .eq("business_id", business.id)
     .gte("starts_at", range.start.toISOString()).lt("starts_at", range.end.toISOString())
     .order("starts_at");
   const [{ data: staff, error: staffError }, { data: businessHours, error: hoursError }] = await Promise.all([
-    supabase.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).order("name"),
-    supabase.from("business_hours").select("weekday, open_time, close_time, is_closed").eq("business_id", business.id),
+    db.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).order("name"),
+    db.from("business_hours").select("weekday, open_time, close_time, is_closed").eq("business_id", business.id),
   ]);
   if (staffError || hoursError) throw new Error("No se pudieron cargar los profesionales y horarios de la agenda.");
   const selectedStaffId = staff?.some((person) => person.id === params.staff) ? params.staff : "";
@@ -64,10 +64,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Search
       code: appointmentsError.code,
       message: appointmentsError.message,
     });
-    if (appointmentsError.code === "PGRST200" || appointmentsError.code === "PGRST201") {
-      throw new Error("Supabase no encuentra las relaciones de citas. Ejecuta las migraciones de supabase/migrations en orden, incluida 0004_multi_service_branding.sql, y vuelve a cargar.");
-    }
-    throw new Error(`No fue posible cargar la agenda desde Supabase (${appointmentsError.code}). Revisa los registros del servidor para más detalles.`);
+    throw new Error("No se pudo cargar la agenda de citas desde Neon.");
   }
   const weekRange = currentWeekRange(businessLocalDate(now, business.timezone), business.timezone);
   const monthRange = currentMonthRange(businessLocalDate(now, business.timezone), business.timezone);
@@ -125,14 +122,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Search
         .format(new Date(`${today}T12:00:00Z`))
       : `${weekdayFormatter.format(new Date(`${weekDates[0]}T12:00:00Z`))} — ${weekdayFormatter.format(new Date(`${weekDates[6]}T12:00:00Z`))}`;
   const [{ count: todayCount }, { count: weekCount }, { data: monthAppointments }] = await Promise.all([
-    supabase.from("appointments").select("id", { count: "exact", head: true })
+    db.from("appointments").select("id", { count: "exact", head: true })
       .eq("business_id", business.id).gte("starts_at", localDateToUtc(businessLocalDate(now, business.timezone), business.timezone).toISOString())
       .lt("starts_at", localDateToUtc(localDateAtOffset(businessLocalDate(now, business.timezone), 1), business.timezone).toISOString())
       .neq("status", "cancelada"),
-    supabase.from("appointments").select("id", { count: "exact", head: true })
+    db.from("appointments").select("id", { count: "exact", head: true })
       .eq("business_id", business.id).gte("starts_at", weekRange.start.toISOString())
       .lt("starts_at", weekRange.end.toISOString()).neq("status", "cancelada"),
-    supabase.from("appointments").select("appointment_services(services(name, price_cop))")
+    db.from("appointments").select("appointment_services(services(name, price_cop))")
       .eq("business_id", business.id).gte("starts_at", monthRange.start.toISOString())
       .lt("starts_at", monthRange.end.toISOString()).neq("status", "cancelada"),
   ]);

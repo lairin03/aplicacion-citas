@@ -8,12 +8,12 @@ import { getBusinessFeatureContext } from "@/lib/professional-access";
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) notFound();
-  const { supabase, business } = await getBusinessFeatureContext("customer_history");
+  const { db, business } = await getBusinessFeatureContext("customer_history");
 
   const [{ data: customer, error: customerError }, { data: appointments, error: appointmentsError }] = await Promise.all([
-    supabase.from("customers").select("id, name, phone, notes, created_at")
+    db.from("customers").select("id, name, phone, notes, created_at")
       .eq("id", id).eq("business_id", business.id).maybeSingle(),
-    supabase.from("appointments").select("id, starts_at, status, services(name, price_cop), appointment_services(services(name)), staff(name)")
+    db.from("appointments").select("id, starts_at, status, services(name, price_cop), appointment_services(services(name)), staff(name)")
       .eq("customer_id", id).eq("business_id", business.id).order("starts_at", { ascending: false }).limit(100),
   ]);
   if (customerError || appointmentsError) throw new Error("No se pudo cargar la ficha del cliente.");

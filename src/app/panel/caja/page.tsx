@@ -21,18 +21,18 @@ const money = (amount: number) => new Intl.NumberFormat("es-CO", {
 }).format(amount);
 
 export default async function CashRegisterPage({ searchParams }: { searchParams: SearchParams }) {
-  const { supabase, business } = await getProfessionalContext("cash");
+  const { db, business } = await getProfessionalContext("cash");
   const params = await searchParams;
   const date = isDate(params.date) ? params.date! : todayInZone(business.timezone);
   const appointmentCutoff = localDateToUtc(localDateAtOffset(date, 90), business.timezone).toISOString();
   const [{ data: payments, error: paymentsError }, { data: appointments, error: appointmentsError }] = await Promise.all([
-    supabase.from("appointment_payments")
+    db.from("appointment_payments")
       .select("id, amount_cop, method, status, payment_date, note, appointments(id, starts_at, customers(name), services(name), appointment_services(services(name)), staff(name))")
       .eq("business_id", business.id)
       .eq("payment_date", date)
       .order("created_at", { ascending: false })
       .limit(200),
-    supabase.from("appointments")
+    db.from("appointments")
       .select("id, starts_at, status, customers(name), services(name), appointment_services(services(name)), staff(name)")
       .eq("business_id", business.id)
       .neq("status", "cancelada")

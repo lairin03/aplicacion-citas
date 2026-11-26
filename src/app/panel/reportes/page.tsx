@@ -15,7 +15,7 @@ const money = (amount: number) => new Intl.NumberFormat("es-CO", {
 }).format(amount);
 
 export default async function ReportsPage({ searchParams }: { searchParams: SearchParams }) {
-  const { supabase, business } = await getProfessionalContext("reports");
+  const { db, business } = await getProfessionalContext("reports");
   const params = await searchParams;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: business.timezone }).format(new Date());
   const from = validDate(params.from) ? params.from! : localDateAtOffset(today, -29);
@@ -35,10 +35,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
     { data: serviceOptions, error: serviceError },
     { data: matchingServiceAppointments, error: serviceAppointmentsError },
   ] = await Promise.all([
-    supabase.from("staff").select("id, name").eq("business_id", business.id).order("name"),
-    supabase.from("services").select("id, name").eq("business_id", business.id).order("name"),
+    db.from("staff").select("id, name").eq("business_id", business.id).order("name"),
+    db.from("services").select("id, name").eq("business_id", business.id).order("name"),
     serviceFilter
-      ? supabase.from("appointment_services").select("appointment_id")
+      ? db.from("appointment_services").select("appointment_id")
         .eq("business_id", business.id).eq("service_id", serviceFilter)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -46,7 +46,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
     throw new Error("No se pudieron cargar los filtros de reportes.");
   }
 
-  let appointmentsQuery = supabase.from("appointments")
+  let appointmentsQuery = db.from("appointments")
     .select("id, status, starts_at, staff_id, services(name, price_cop), appointment_services(services(name, price_cop)), staff(name)")
     .eq("business_id", business.id)
     .gte("starts_at", start).lt("starts_at", end)
@@ -64,7 +64,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   }
   const appointmentIds = (appointments ?? []).map((appointment) => appointment.id);
   const { data: payments, error: paymentsError } = appointmentIds.length
-    ? await supabase.from("appointment_payments").select("appointment_id, amount_cop, status, payment_date")
+    ? await db.from("appointment_payments").select("appointment_id, amount_cop, status, payment_date")
       .eq("business_id", business.id).gte("payment_date", from).lte("payment_date", to)
       .in("appointment_id", appointmentIds)
     : { data: [], error: null };

@@ -11,13 +11,13 @@ const statusNames: Record<string, string> = {
 export default async function HistoryPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const query = (params.q ?? "").trim().slice(0, 80);
-  const { supabase, business } = await getBusinessFeatureContext("customer_history");
+  const { db, business } = await getBusinessFeatureContext("customer_history");
 
   let customerIds: string[] | null = null;
   if (query) {
     const [{ data: byName, error: nameError }, { data: byPhone, error: phoneError }] = await Promise.all([
-      supabase.from("customers").select("id").eq("business_id", business.id).ilike("name", `%${query}%`).limit(50),
-      supabase.from("customers").select("id").eq("business_id", business.id).ilike("phone", `%${query}%`).limit(50),
+      db.from("customers").select("id").eq("business_id", business.id).ilike("name", `%${query}%`).limit(50),
+      db.from("customers").select("id").eq("business_id", business.id).ilike("phone", `%${query}%`).limit(50),
     ]);
     if (nameError || phoneError) throw new Error("No se pudo buscar el cliente.");
     customerIds = [...new Set([...(byName ?? []), ...(byPhone ?? [])].map((customer) => customer.id))];
@@ -26,7 +26,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Sear
   const today = businessLocalDate(new Date(), business.timezone);
   const from = validDate(params.from) ? params.from! : localDateAtOffset(today, -90);
   const to = validDate(params.to) ? params.to! : today;
-  let appointmentsQuery = supabase.from("appointments")
+  let appointmentsQuery = db.from("appointments")
     .select("id, customer_id, starts_at, ends_at, status, customers(name, phone), services(name, price_cop), appointment_services(services(name)), staff(name)")
     .eq("business_id", business.id)
     .gte("starts_at", localDateToUtc(from, business.timezone).toISOString())

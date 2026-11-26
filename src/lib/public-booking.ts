@@ -2,7 +2,7 @@ import "server-only";
 
 import { formatInTimeZone } from "date-fns-tz";
 import { localDateAtOffset, localDateTimeToUtc, localDateToUtc } from "@/lib/dates";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 
 export type PublicBusiness = {
   id: string;
@@ -91,7 +91,7 @@ export async function getAvailableSlots(input: {
     .select("id, name, email")
     .eq("business_id", input.business.id)
     .eq("is_active", true)
-    .not("email", "is", null)
+    .notNull("email")
     .in("id", offeredIds)
     .order("name");
   if (staffError) throw new Error("No se pudo consultar los profesionales.");

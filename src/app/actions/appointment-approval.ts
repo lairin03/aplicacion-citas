@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { sendAppointmentDecisionWhatsApp } from "@/lib/appointment-notifications";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 
 export async function processAppointmentDecisionAction(formData: FormData) {
   const token = z.string().regex(/^[a-f0-9]{64}$/).safeParse(formData.get("token"));
@@ -81,7 +81,7 @@ export async function processAppointmentDecisionAction(formData: FormData) {
     : { data: [], error: null };
 
   if (businessError || customerError || staffError || appointmentServicesError || servicesError
-    || !business || !customer || !staff || !services?.length) {
+    || !business || !customer?.phone || !staff || !services?.length) {
     console.error("La decisión fue procesada, pero faltan datos para notificar a la clienta.", {
       appointmentId: appointment.id,
       errors: [businessError, customerError, staffError, appointmentServicesError, servicesError].filter(Boolean),

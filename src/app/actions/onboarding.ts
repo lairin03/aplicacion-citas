@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { businessOnboardingSchema } from "@/lib/validation/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import type { ActionState } from "@/app/actions/auth";
 
 const weekdays = [
@@ -14,8 +14,8 @@ export async function createBusinessAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: userError } = await db.auth.getUser();
   if (userError || !user) return { error: "Inicia sesión para crear tu negocio." };
 
   const hours = weekdays.map((_, weekday) => ({
@@ -44,14 +44,14 @@ export async function createBusinessAction(
     return { error: parsed.error.issues[0]?.message ?? "Revisa los datos del negocio." };
   }
 
-  const { data: slugConflict, error: slugCheckError } = await supabase.rpc(
+  const { data: slugConflict, error: slugCheckError } = await db.rpc(
     "is_business_slug_available",
     { candidate: parsed.data.slug },
   );
   if (slugCheckError) return { error: "No se pudo validar el enlace. Intenta nuevamente." };
   if (!slugConflict) return { error: "Ese enlace ya está en uso. Elige otro." };
 
-  const { data: newBusinessId, error: createError } = await supabase.rpc("create_business_onboarding", {
+  const { data: newBusinessId, error: createError } = await db.rpc("create_business_onboarding", {
     p_name: parsed.data.name,
     p_slug: parsed.data.slug,
     p_type: parsed.data.type,

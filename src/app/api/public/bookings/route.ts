@@ -5,7 +5,7 @@ import { z } from "zod";
 import { formatInTimeZone } from "date-fns-tz";
 import { sendAppointmentApprovalEmail } from "@/lib/appointment-notifications";
 import { findPublicBusiness, getAvailableSlots, isBusinessPlanActive } from "@/lib/public-booking";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 
 const bookingSchema = z.object({
   slug: z.string().min(1).max(120).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),

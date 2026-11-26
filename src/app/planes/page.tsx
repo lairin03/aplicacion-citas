@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Check, CreditCard, ShieldCheck } from "lucide-react";
 import { startWompiCheckoutAction } from "@/app/actions/billing";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 const plans = [
@@ -33,8 +33,8 @@ const plans = [
 type SearchParams = Promise<{ trial?: string; payment?: string }>;
 
 export default async function PlansPage({ searchParams }: { searchParams: SearchParams }) {
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: userError } = await db.auth.getUser();
   if (userError || !user) redirect("/login");
   if (isConfirmedSuperAdmin(user)) redirect("/admin");
 
@@ -43,14 +43,14 @@ export default async function PlansPage({ searchParams }: { searchParams: Search
     { count: businessCount, error: businessError },
     { data: planCatalog, error: planCatalogError },
   ] = await Promise.all([
-    supabase.from("business_subscriptions")
+    db.from("business_subscriptions")
       .select("plan, status, trial_ends_at, current_period_ends_at")
       .eq("owner_id", user.id)
       .maybeSingle(),
-    supabase.from("businesses")
+    db.from("businesses")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", user.id),
-    supabase.from("plan_feature_catalog")
+    db.from("plan_feature_catalog")
       .select("plan, benefits, monthly_price_cop, regular_price_cop")
       .order("plan"),
   ]);

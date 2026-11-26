@@ -2,16 +2,16 @@ import { redirect } from "next/navigation";
 import { PanelNav } from "@/components/panel/panel-nav";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import { getBusinessFeatures } from "@/lib/business-features";
 
 export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: userError } = await db.auth.getUser();
   if (userError || !user) redirect("/login");
   const isAdmin = isConfirmedSuperAdmin(user);
 
-  const { data: businesses, error } = await supabase.from("businesses")
+  const { data: businesses, error } = await db.from("businesses")
     .select("id, name, logo_url").eq("owner_id", user.id).order("name");
   if (error) {
     console.error("No se pudo cargar el negocio del usuario autenticado.", {
@@ -19,19 +19,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
       message: error.message,
     });
 
-    if (error.code === "42P01" || error.code === "PGRST205") {
-      throw new Error("No existe la tabla businesses en Supabase. Aplica la migración supabase/migrations/0001_initial_schema.sql en el SQL Editor del proyecto.");
-    }
-
-    if (error.code === "42703" || error.code === "PGRST204") {
-      throw new Error("La tabla businesses no tiene el esquema esperado. Aplica la migración supabase/migrations/0001_initial_schema.sql en el SQL Editor del proyecto.");
-    }
-
-    if (error.code === "42501") {
-      throw new Error("Supabase denegó el acceso a businesses. Revisa que la migración haya creado los permisos y la política RLS businesses_owner_all.");
-    }
-
-    throw new Error(`No se pudo cargar el negocio desde Supabase (${error.code}). Revisa los registros del servidor para más detalles.`);
+    throw new Error("No se pudo cargar el negocio. Revisa el esquema y los permisos de Neon.");
   }
   const business = await selectCurrentBusiness(businesses ?? []);
   if (isAdmin) {
@@ -56,14 +44,14 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
   }
   if (!business) redirect("/onboarding");
 
-  const { data: subscription, error: subscriptionError } = await supabase
+  const { data: subscription, error: subscriptionError } = await db
     .from("business_subscriptions")
     .select("plan, status, trial_ends_at, current_period_ends_at, enterprise_location_limit, location_limit_override")
     .eq("owner_id", user.id)
     .maybeSingle();
   if (subscriptionError) {
     if (subscriptionError.code === "42P01" || subscriptionError.code === "PGRST205") {
-      throw new Error("Falta aplicar supabase/migrations/0006_plans_trials_and_limits.sql para habilitar planes y el período de prueba.");
+      throw new Error("Falta aplicar db/migrations/0006_plans_trials_and_limits.sql para habilitar planes y el período de prueba.");
     }
     throw new Error("No se pudo consultar el estado del plan.");
   }
@@ -80,7 +68,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/panel">) {
   const canAddLocation = hasAccess
     && (subscription?.plan === "professional" || subscription?.plan === "enterprise")
     && (locationLimit === 0 || (businesses?.length ?? 0) < locationLimit);
-  const features = await getBusinessFeatures(supabase, business.id, subscription?.plan ?? "");
+  const features = await getBusinessFeatures(db, business.id, subscription?.plan ?? "");
 
   return (
     <div className="min-h-screen bg-[#faf9f6] md:flex">

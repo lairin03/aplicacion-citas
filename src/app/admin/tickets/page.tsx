@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { updateSupportTicketStatusAction } from "@/app/actions/support";
 import { SupportTicketReplyForm } from "@/components/panel/support-ticket-forms";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 type SearchParams = Promise<{ status?: string; saved?: string }>;
@@ -12,8 +12,8 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default async function AdminTicketsPage({ searchParams }: { searchParams: SearchParams }) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BusinessForm } from "@/components/onboarding/business-form";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 export default async function NewAdminLocationPage({
@@ -10,8 +10,8 @@ export default async function NewAdminLocationPage({
 }: {
   searchParams: Promise<{ ownerId?: string }>;
 }) {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error } = await db.auth.getUser();
   if (error || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
 

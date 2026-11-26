@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { updatePlanFeatureCatalogAction, updateSubscriptionAsSuperAdminAction } from "@/app/actions/super-admin";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 type SearchParams = Promise<{ saved?: string; edit?: string }>;
 
 export default async function SuperAdminSubscriptionsPage({ searchParams }: { searchParams: SearchParams }) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
 
@@ -93,9 +93,9 @@ export default async function SuperAdminSubscriptionsPage({ searchParams }: { se
               </div>
             )}
             <div className="mt-3 space-y-2">
-              <FeatureCheckbox name="cashEnabled" checked={plan.cash_enabled} label="Caja" />
-              <FeatureCheckbox name="reportsEnabled" checked={plan.reports_enabled} label="Reportes" />
-              <FeatureCheckbox name="customerHistoryEnabled" checked={plan.customer_history_enabled} label="Historial y ficha de clientes" />
+              <FeatureCheckbox name="cashEnabled" checked={plan.cash_enabled ?? false} label="Caja" />
+              <FeatureCheckbox name="reportsEnabled" checked={plan.reports_enabled ?? false} label="Reportes" />
+              <FeatureCheckbox name="customerHistoryEnabled" checked={plan.customer_history_enabled ?? false} label="Historial y ficha de clientes" />
             </div>
             <label className="mt-4 block text-xs font-semibold text-slate-600">Beneficios (uno por línea)
               <textarea name="benefits" rows={5} defaultValue={Array.isArray(plan.benefits) ? plan.benefits.join("\n") : ""} className="form-input mt-1 resize-y" />

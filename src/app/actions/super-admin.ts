@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { businessOnboardingSchema } from "@/lib/validation/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 import type { ActionState } from "@/app/actions/auth";
 
@@ -41,8 +41,8 @@ const planFeatureFormSchema = z.object({
 });
 
 async function requireSuperAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error } = await db.auth.getUser();
   if (error || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
   return user;

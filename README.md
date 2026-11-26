@@ -1,12 +1,13 @@
 # Agenda Laii
 
-Agenda y reservas en línea para profesionales que trabajan por citas, incluidos negocios de belleza, lashistas, consultorios y profesionales independientes. Interfaz y validaciones en español, Next.js App Router, TypeScript, Tailwind y Supabase.
+Agenda y reservas en línea para profesionales que trabajan por citas, incluidos negocios de belleza, lashistas, consultorios y profesionales independientes. Interfaz y validaciones en español, Next.js App Router, TypeScript, Tailwind, PostgreSQL en Neon y Neon Auth.
 
 ## Requisitos
 
 - Node.js 20.9 o superior.
-- Proyecto Supabase con Auth por correo y contraseña.
-- Aplicar, en orden, las migraciones `0001` a `0021` de `supabase/migrations/` desde el SQL Editor de Supabase.
+- Base de datos de Laii Agenda provisionada en Neon con los roles `authenticated` y `service_role`, las tablas de negocio, sus funciones y las políticas RLS.
+- Neon Auth con correo y contraseña, verificación de correo obligatoria y el dominio de la app como origen de confianza.
+- Aplicar en orden los archivos de `neon/migrations/` sobre esa base. Los archivos históricos de `supabase/migrations/` sirven como referencia del esquema original.
 
 ## Ejecutar localmente
 
@@ -15,10 +16,10 @@ npm install
 Copy-Item .env.example .env.local
 ```
 
-Completa `.env.local` con las claves del proyecto Supabase. `SUPABASE_SERVICE_ROLE_KEY` y `APP_RATE_LIMIT_HASH_SECRET` son secretos de servidor: no los prefijes con `NEXT_PUBLIC_` ni los incluyas en el navegador.
+Completa `.env.local` con la conexión de la rama de Neon, `NEON_AUTH_BASE_URL` de la misma rama y `APP_URL`. Genera `NEON_AUTH_COOKIE_SECRET` con `openssl rand -base64 32`. `DATABASE_URL`, `NEON_AUTH_COOKIE_SECRET` y `APP_RATE_LIMIT_HASH_SECRET` son secretos de servidor. Configúralos también en Vercel junto con `NEON_AUTH_BASE_URL` y `APP_URL`.
 En producción, configura también `APP_RATE_LIMIT_HASH_SECRET` en las variables del despliegue; sin ella, el endpoint público de reservas responde con error de configuración.
 
-Para cobrar los planes, configura `APP_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` con las credenciales del mismo ambiente de Wompi (pruebas o producción). Nunca expongas los secretos de integridad, eventos o service role en el navegador. Configura en el Dashboard de Wompi la URL de eventos `https://<tu-dominio>/api/webhooks/wompi`.
+Para cobrar los planes, configura `APP_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` con las credenciales del mismo ambiente de Wompi (pruebas o producción). Nunca expongas los secretos de integridad, eventos o la conexión de base de datos en el navegador. Configura en el Dashboard de Wompi la URL de eventos `https://<tu-dominio>/api/webhooks/wompi`.
 
 Los pagos de Básico y Profesional son mensuales y manuales: el cliente vuelve a `/planes` para renovar. El plan solo se activa después de validar la firma del evento `transaction.updated` y el monto en COP; el regreso del checkout por sí solo no confirma un pago. Wompi no ofrece en su documentación colombiana un programador mensual de suscripciones, así que esta versión no hace cobros automáticos ni guarda tarjetas.
 
@@ -37,8 +38,8 @@ Abre `http://localhost:3000`, crea una cuenta, configura el negocio en el onboar
 ## Seguridad multi-tenant
 
 - Todas las tablas de negocio incluyen `business_id`; `businesses` es la excepción y asocia `owner_id`.
-- Las tablas de negocio aplican RLS y permiten acceso autenticado solo cuando `business_id` pertenece a un negocio cuyo `owner_id` coincide con `auth.uid()`.
-- Las páginas y acciones del panel usan la sesión Supabase del usuario. Las páginas públicas consultan desde el servidor con `service_role`; esa clave nunca se expone al cliente.
+- Las tablas de negocio aplican RLS y permiten acceso autenticado solo cuando `business_id` pertenece a un negocio cuyo `owner_id` coincide con `laii_private.user_id()`.
+- Las consultas del panel establecen el rol `authenticated` y el identificador de la sesión verificada en una transacción de PostgreSQL. Las consultas públicas y las operaciones administrativas autorizadas utilizan `service_role` desde el servidor.
 - La función de reserva pública y el rate limit solo se pueden ejecutar con `service_role`.
 - La restricción GiST de exclusión impide solapamientos por profesional incluso si dos reservas compiten al mismo tiempo. Las citas canceladas no bloquean el horario.
 
@@ -49,20 +50,16 @@ npm run lint
 npm run build
 ```
 
-La prueba de aislamiento crea y elimina filas temporales en el negocio B y comprueba lectura/escritura desde A, acceso del dueño B y rechazo de una cita solapada. Requiere dos usuarios de prueba confirmados en Supabase, cada uno con un negocio creado mediante el onboarding:
+La prueba de aislamiento requiere una rama de Neon de pruebas con dos cuentas verificadas, cada una con un negocio recién creado mediante el onboarding y con su prueba activa. Usa los UUID de esas cuentas (los valores `id` de `neon_auth.user`).
 
 ```powershell
-$env:NEXT_PUBLIC_SUPABASE_URL="https://<proyecto>.supabase.co"
-$env:NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon-key>"
-$env:SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
-$env:TENANT_TEST_A_EMAIL="<correo-negocio-a>"
-$env:TENANT_TEST_A_PASSWORD="<contraseña-a>"
-$env:TENANT_TEST_B_EMAIL="<correo-negocio-b>"
-$env:TENANT_TEST_B_PASSWORD="<contraseña-b>"
+$env:DATABASE_URL="<conexión Neon de prueba>"
+$env:TENANT_TEST_A_ID="<UUID del primer usuario>"
+$env:TENANT_TEST_B_ID="<UUID del segundo usuario>"
 npm run test:tenant
 ```
 
-Ejecuta la prueba únicamente contra un proyecto de prueba: crea y elimina registros temporales de citas, clientes, profesionales, servicios, bloqueos y rate limiting.
+La prueba ejecuta las escrituras en una transacción que se revierte al terminar.
 
 ## Rutas MVP
 
@@ -79,7 +76,7 @@ Ejecuta la prueba únicamente contra un proyecto de prueba: crea y elimina regis
 - `/panel/caja` y `/panel/reportes` (plan Profesional; pagos por cita, ingresos netos, citas y servicios)
 - `/admin` y `/admin/suscripciones` (superadministración restringida a `delaranslairin9@gmail.com`, con correo confirmado)
 
-Para activar el superusuario, registra en Supabase Auth la cuenta `delaranslairin9@gmail.com` y confirma su correo. La aplicación concede acceso administrativo solo a esa identidad autenticada; no se configura ni expone una contraseña desde el código. Desde el panel se consultan las suscripciones y se cambian plan/estado/fechas. Los topes de profesionales y sedes pueden heredarse del plan (campo vacío), personalizarse o quitarse (valor `0`). Desde la lista también se agrega una sede a cuentas Profesional y Empresarial; la acción valida la identidad superadmin y vuelve a comprobar los límites de la suscripción en la base de datos. La migración `0010` amplía los tipos de negocio y crea la función protegida para esa operación.
+Para activar el superusuario, registra con Neon Auth la cuenta `delaranslairin9@gmail.com` y confirma su correo. La aplicación concede acceso administrativo solo a esa identidad autenticada; no se configura ni expone una contraseña desde el código. Desde el panel se consultan las suscripciones y se cambian plan/estado/fechas. Los topes de profesionales y sedes pueden heredarse del plan (campo vacío), personalizarse o quitarse (valor `0`). Desde la lista también se agrega una sede a cuentas Profesional y Empresarial; la acción valida la identidad superadmin y vuelve a comprobar los límites de la suscripción en la base de datos. La migración `0010` amplía los tipos de negocio y crea la función protegida para esa operación.
 
 El superadministrador tiene acceso funcional equivalente al plan Profesional sin vencimiento ni límites de profesionales o sedes. Esta excepción se verifica tanto en el servidor como en la base de datos para el usuario autenticado con ese correo confirmado; no se aplica a otras cuentas ni se controla únicamente por el enlace de navegación.
 

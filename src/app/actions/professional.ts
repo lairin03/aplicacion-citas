@@ -29,8 +29,8 @@ export async function createAppointmentPaymentAction(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Revisa los datos del pago.");
 
-  const { supabase, user, business } = await getProfessionalContext("cash");
-  const { error } = await supabase.from("appointment_payments").insert({
+  const { db, user, business } = await getProfessionalContext("cash");
+  const { error } = await db.from("appointment_payments").insert({
     business_id: business.id,
     appointment_id: parsed.data.appointmentId,
     created_by: user.id,
@@ -59,8 +59,8 @@ export async function updateAppointmentPaymentStatusAction(formData: FormData) {
     status: formData.get("status"),
   });
   if (!parsed.success) throw new Error("El pago o su estado no son válidos.");
-  const { supabase, business } = await getProfessionalContext("cash");
-  const { data, error } = await supabase.from("appointment_payments")
+  const { db, business } = await getProfessionalContext("cash");
+  const { data, error } = await db.from("appointment_payments")
     .update({ status: parsed.data.status })
     .eq("id", parsed.data.paymentId)
     .eq("business_id", business.id)

@@ -3,8 +3,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/neon/admin";
+import { createClient } from "@/lib/neon/server";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 
 export async function startWompiCheckoutAction(formData: FormData) {
@@ -29,13 +29,13 @@ export async function startWompiCheckoutAction(formData: FormData) {
     throw new Error("APP_URL debe usar HTTPS en producción.");
   }
 
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: userError } = await db.auth.getUser();
   if (userError || !user) redirect("/login");
   if (isConfirmedSuperAdmin(user)) redirect("/admin");
   if (!user.email) throw new Error("La cuenta no tiene un correo para asociar al pago.");
 
-  const { data: subscription, error: subscriptionError } = await supabase
+  const { data: subscription, error: subscriptionError } = await db
     .from("business_subscriptions")
     .select("owner_id")
     .eq("owner_id", user.id)
@@ -43,7 +43,7 @@ export async function startWompiCheckoutAction(formData: FormData) {
   if (subscriptionError) throw new Error("No se pudo validar la cuenta para iniciar el pago.");
   if (!subscription) redirect("/onboarding");
 
-  const { data: business, error: businessError } = await supabase
+  const { data: business, error: businessError } = await db
     .from("businesses")
     .select("id")
     .eq("owner_id", user.id)
@@ -67,7 +67,7 @@ export async function startWompiCheckoutAction(formData: FormData) {
     });
     throw new Error("No se pudo consultar el precio del plan. Intenta nuevamente.");
   }
-  if (!planPricing || !Number.isSafeInteger(planPricing.monthly_price_cop)
+  if (planPricing?.monthly_price_cop == null || !Number.isSafeInteger(planPricing.monthly_price_cop)
     || planPricing.monthly_price_cop < 1_000) {
     throw new Error("El precio de este plan no está configurado correctamente.");
   }

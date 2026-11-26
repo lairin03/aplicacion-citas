@@ -6,9 +6,9 @@ type SearchParams = Promise<{ q?: string }>;
 export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const query = (params.q ?? "").trim().slice(0, 80);
-  const { supabase, business } = await getBusinessFeatureContext("customer_history");
+  const { db, business } = await getBusinessFeatureContext("customer_history");
 
-  let customerQuery = supabase.from("customers")
+  let customerQuery = db.from("customers")
     .select("id, name, phone, created_at").eq("business_id", business.id)
     .order("created_at", { ascending: false }).limit(100);
   if (query) customerQuery = customerQuery.ilike("name", `%${query}%`);

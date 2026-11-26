@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { FileText, MapPin, Scissors } from "lucide-react";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import { businessLocalDate } from "@/lib/dates";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 
 export default async function BookingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -18,7 +18,7 @@ export default async function BookingPage({ params }: { params: Promise<{ slug: 
   const [{ data: services, error: servicesError }, { data: staff, error: staffError }, { data: offerings, error: offeringsError }] = await Promise.all([
     admin.from("services").select("id, name, duration_minutes, price_cop")
       .eq("business_id", business.id).eq("is_active", true).order("name"),
-    admin.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).not("email", "is", null).order("name"),
+    admin.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).notNull("email").order("name"),
     admin.from("staff_services").select("staff_id, service_id").eq("business_id", business.id).eq("is_active", true),
   ]);
   if (servicesError || staffError || offeringsError) throw new Error("No se pudo cargar la información de reservas.");

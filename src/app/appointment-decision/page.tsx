@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { notFound } from "next/navigation";
 import { processAppointmentDecisionAction } from "@/app/actions/appointment-approval";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 import { formatBusinessDateTime } from "@/lib/dates";
 
 type SearchParams = Promise<{ token?: string; decision?: string; result?: string }>;

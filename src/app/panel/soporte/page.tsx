@@ -1,5 +1,5 @@
 import { CreateSupportTicketForm, SupportTicketReplyForm } from "@/components/panel/support-ticket-forms";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 
 const statusLabels: Record<string, string> = {
@@ -16,22 +16,22 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default async function SupportPage() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) throw new Error("Debes iniciar sesión para consultar soporte.");
-  const { data: businesses, error: businessesError } = await supabase.from("businesses")
+  const { data: businesses, error: businessesError } = await db.from("businesses")
     .select("id, name").eq("owner_id", user.id).order("name");
   if (businessesError) throw new Error("No se pudo cargar el negocio de soporte.");
   const business = await selectCurrentBusiness(businesses ?? []);
   if (!business) throw new Error("Crea un negocio antes de abrir un ticket.");
 
-  const { data: tickets, error: ticketsError } = await supabase.from("support_tickets")
+  const { data: tickets, error: ticketsError } = await db.from("support_tickets")
     .select("id, subject, category, status, created_at, updated_at")
     .eq("business_id", business.id).order("updated_at", { ascending: false }).limit(100);
   if (ticketsError) throw new Error("No se pudieron cargar tus tickets.");
   const ticketIds = (tickets ?? []).map((ticket) => ticket.id);
   const { data: messages, error: messagesError } = ticketIds.length
-    ? await supabase.from("support_ticket_messages")
+    ? await db.from("support_ticket_messages")
       .select("id, ticket_id, author_role, body, created_at")
       .eq("business_id", business.id).in("ticket_id", ticketIds).order("created_at")
     : { data: [], error: null };

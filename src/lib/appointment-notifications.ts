@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { es } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/neon/admin";
 
 const APP_BRAND_NAME = "Laii Agenda";
 

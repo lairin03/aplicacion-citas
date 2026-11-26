@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/neon/server";
 import { selectCurrentBusiness } from "@/lib/business-selection";
 import { isConfirmedSuperAdmin } from "@/lib/super-admin";
 import type { ActionState } from "@/app/actions/auth";
@@ -23,16 +23,16 @@ export async function createSupportTicketAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos del ticket." };
 
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
-  const { data: businesses, error: businessesError } = await supabase.from("businesses")
+  const { data: businesses, error: businessesError } = await db.from("businesses")
     .select("id").eq("owner_id", user.id).order("name");
   if (businessesError) return { error: "No se pudo identificar el negocio actual." };
   const business = await selectCurrentBusiness(businesses ?? []);
   if (!business) return { error: "No se encontró un negocio para esta cuenta." };
 
-  const { error } = await supabase.rpc("create_support_ticket", {
+  const { error } = await db.rpc("create_support_ticket", {
     p_business_id: business.id,
     p_subject: parsed.data.subject,
     p_category: parsed.data.category,
@@ -59,10 +59,10 @@ export async function replyToSupportTicketAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Escribe una respuesta." };
 
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
-  const { error } = await supabase.rpc("add_support_ticket_reply", {
+  const { error } = await db.rpc("add_support_ticket_reply", {
     p_ticket_id: parsed.data.ticketId,
     p_body: parsed.data.message,
   });
@@ -80,11 +80,11 @@ export async function updateSupportTicketStatusAction(formData: FormData) {
   const ticketId = z.uuid().safeParse(formData.get("ticketId"));
   if (!status.success || !ticketId.success) throw new Error("El ticket o el estado seleccionado no son válidos.");
 
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const db = await createClient();
+  const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) redirect("/login");
   if (!isConfirmedSuperAdmin(user)) redirect("/panel");
-  const { error } = await supabase.rpc("update_support_ticket_status", {
+  const { error } = await db.rpc("update_support_ticket_status", {
     p_ticket_id: ticketId.data,
     p_status: status.data,
   });

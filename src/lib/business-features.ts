@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { createClient } from "./neon/server";
 
 export type BusinessFeature = "cash" | "reports" | "customer_history";
 export type BusinessFeatures = Record<BusinessFeature, boolean>;
@@ -19,7 +19,7 @@ const overrideColumns: Record<BusinessFeature, FeatureColumn> = {
 };
 
 export async function getBusinessFeatures(
-  supabase: SupabaseClient,
+  db: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
   plan: string,
   isSuperAdmin = false,
@@ -27,10 +27,10 @@ export async function getBusinessFeatures(
   if (isSuperAdmin) return { cash: true, reports: true, customer_history: true };
 
   const [{ data: planFeatures, error: planError }, { data: overrides, error: overrideError }] = await Promise.all([
-    supabase.from("plan_feature_catalog")
+    db.from("plan_feature_catalog")
       .select("cash_enabled, reports_enabled, customer_history_enabled")
       .eq("plan", plan).maybeSingle(),
-    supabase.from("business_feature_overrides")
+    db.from("business_feature_overrides")
       .select("cash_enabled, reports_enabled, customer_history_enabled")
       .eq("business_id", businessId).maybeSingle(),
   ]);
