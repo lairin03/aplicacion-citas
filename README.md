@@ -6,7 +6,7 @@ Agenda y reservas en línea para profesionales que trabajan por citas, incluidos
 
 - Node.js 20.9 o superior.
 - Base de datos de Laii Agenda provisionada en Neon con los roles `authenticated` y `service_role`, las tablas de negocio, sus funciones y las políticas RLS.
-- Neon Auth con correo y contraseña, verificación de correo obligatoria y el dominio de la app como origen de confianza.
+- Neon Auth con correo y contraseña, verificación de correo obligatoria por código y el dominio de la app como origen de confianza.
 - Aplicar en orden los archivos de `neon/migrations/` sobre esa base. Los archivos históricos de `supabase/migrations/` sirven como referencia del esquema original.
 
 ## Ejecutar localmente

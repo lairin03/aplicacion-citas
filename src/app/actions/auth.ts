@@ -1,15 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { credentialsSchema } from "@/lib/validation/auth";
 import { getAuth } from "@/lib/neon/auth";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = { error?: string; success?: string; verificationEmail?: string };
 
 function authErrorMessage(error: { code?: string; status?: number }) {
   switch (error.code) {
-    case "EMAIL_NOT_VERIFIED":
-      return "Confirma tu correo electrónico y vuelve a iniciar sesión.";
     case "INVALID_EMAIL_OR_PASSWORD":
       return "El correo o la contraseña no coinciden con una cuenta registrada.";
     case "USER_ALREADY_EXISTS":
@@ -32,6 +31,7 @@ export async function signInAction(
 
   try {
     const { error } = await getAuth().signIn.email(parsed.data);
+    if (error?.code === "EMAIL_NOT_VERIFIED") return { verificationEmail: parsed.data.email };
     if (error) return { error: authErrorMessage(error) };
   } catch {
     return { error: "No se pudo conectar con el servicio de autenticación. Intenta nuevamente." };
@@ -51,19 +51,47 @@ export async function signUpAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos ingresados." };
 
   try {
-    const appUrl = process.env.APP_URL;
-    if (!appUrl) throw new Error("Falta configurar APP_URL.");
     const { error } = await getAuth().signUp.email({
       ...parsed.data,
       name: parsed.data.email.split("@")[0],
-      callbackURL: new URL("/login", appUrl).href,
     });
     if (error) return { error: authErrorMessage(error) };
   } catch {
     return { error: "No se pudo conectar con el servicio de autenticación. Intenta nuevamente." };
   }
 
-  return { success: "Revisa tu correo para confirmar la cuenta y luego inicia sesión." };
+  return { verificationEmail: parsed.data.email };
+}
+
+export async function confirmEmailAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = z.email().safeParse(formData.get("email"));
+  if (!email.success) return { error: "El correo electrónico no es válido." };
+  const resend = formData.get("intent") === "resend";
+  const otp = String(formData.get("otp") ?? "").trim();
+  if (!resend && !/^\d{6}$/.test(otp)) return { error: "Escribe el código de seis dígitos." };
+
+  try {
+    const auth = getAuth();
+    if (resend) {
+      const { error } = await auth.emailOtp.sendVerificationOtp({
+        email: email.data,
+        type: "email-verification",
+      });
+      if (error) return { error: authErrorMessage(error) };
+      return { success: "Si tu cuenta está pendiente de verificación, recibirás un nuevo código." };
+    }
+
+    const { error } = await auth.emailOtp.verifyEmail({ email: email.data, otp });
+    if (error?.status === 429) return { error: authErrorMessage(error) };
+    if (error) return { error: "El código no es válido o venció. Puedes pedir otro." };
+  } catch {
+    return { error: "No se pudo conectar con el servicio de autenticación. Intenta nuevamente." };
+  }
+
+  redirect("/login?correo=confirmado");
 }
 
 export async function signOutAction() {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { signInAction, signUpAction, type ActionState } from "@/app/actions/auth";
+import { confirmEmailAction, signInAction, signUpAction, type ActionState } from "@/app/actions/auth";
 
 type AuthFormProps = { mode: "login" | "register" };
 const initialState: ActionState = {};
@@ -11,6 +11,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const action = mode === "login" ? signInAction : signUpAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const isLogin = mode === "login";
+  if (state.verificationEmail) return <ConfirmEmailForm email={state.verificationEmail} />;
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
@@ -50,6 +51,49 @@ export function AuthForm({ mode }: AuthFormProps) {
           {isLogin ? "Crea tu cuenta" : "Inicia sesión"}
         </Link>
       </p>
+    </form>
+  );
+}
+
+function ConfirmEmailForm({ email }: { email: string }) {
+  const [state, formAction, pending] = useActionState(confirmEmailAction, initialState);
+
+  return (
+    <form action={formAction} className="mt-8 space-y-5">
+      <h2 className="text-xl font-semibold text-slate-950">Confirma tu correo</h2>
+      <p className="text-sm text-slate-600">Escribe el código de seis dígitos enviado a {email}.</p>
+      <input name="email" type="hidden" value={email} />
+      <label className="block text-sm font-medium text-slate-700">
+        Código de verificación
+        <input
+          name="otp"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          pattern="[0-9]{6}"
+          required
+          className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-600/50"
+        />
+      </label>
+      {state.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</p>}
+      {state.success && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{state.success}</p>}
+      <button
+        disabled={pending}
+        className="min-h-12 w-full rounded-xl bg-slate-950 px-4 font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+      >
+        {pending ? "Un momento..." : "Confirmar correo"}
+      </button>
+      <button
+        type="submit"
+        name="intent"
+        value="resend"
+        formNoValidate
+        disabled={pending}
+        className="block min-h-10 w-full text-sm font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-60"
+      >
+        Reenviar código
+      </button>
     </form>
   );
 }
