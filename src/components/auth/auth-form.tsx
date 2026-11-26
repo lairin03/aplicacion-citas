@@ -11,7 +11,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const action = mode === "login" ? signInAction : signUpAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const isLogin = mode === "login";
-  if (state.verificationEmail) return <ConfirmEmailForm email={state.verificationEmail} />;
+  if (state.verificationEmail) return <ConfirmEmailForm email={state.verificationEmail} initialError={state.error} />;
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
@@ -55,13 +55,13 @@ export function AuthForm({ mode }: AuthFormProps) {
   );
 }
 
-function ConfirmEmailForm({ email }: { email: string }) {
-  const [state, formAction, pending] = useActionState(confirmEmailAction, initialState);
+function ConfirmEmailForm({ email, initialError }: { email: string; initialError?: string }) {
+  const [state, formAction, pending] = useActionState(confirmEmailAction, { error: initialError });
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
       <h2 className="text-xl font-semibold text-slate-950">Confirma tu correo</h2>
-      <p className="text-sm text-slate-600">Escribe el código de seis dígitos enviado a {email}.</p>
+      <p className="text-sm text-slate-600">Escribe el código de seis dígitos para {email}.</p>
       <input name="email" type="hidden" value={email} />
       <label className="block text-sm font-medium text-slate-700">
         Código de verificación

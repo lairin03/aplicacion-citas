@@ -9,11 +9,12 @@ export type ActionState = { error?: string; success?: string; verificationEmail?
 
 function authErrorMessage(error: { code?: string; status?: number }) {
   switch (error.code) {
-    case "INVALID_EMAIL_OR_PASSWORD":
+    case "invalid_credentials":
       return "El correo o la contraseña no coinciden con una cuenta registrada.";
-    case "USER_ALREADY_EXISTS":
-    case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
+    case "user_already_exists":
       return "Ya existe una cuenta con ese correo. Intenta iniciar sesión.";
+    case "weak_password":
+      return "Elige una contraseña de entre 8 y 128 caracteres.";
   }
   if (error.status === 429) return "Se hicieron demasiados intentos. Espera un momento e inténtalo de nuevo.";
   return "No se pudo completar la autenticación. Intenta nuevamente.";
@@ -31,7 +32,7 @@ export async function signInAction(
 
   try {
     const { error } = await getAuth().signIn.email(parsed.data);
-    if (error?.code === "EMAIL_NOT_VERIFIED") return { verificationEmail: parsed.data.email };
+    if (error?.code === "email_not_confirmed") return { verificationEmail: parsed.data.email };
     if (error) return { error: authErrorMessage(error) };
   } catch {
     return { error: "No se pudo conectar con el servicio de autenticación. Intenta nuevamente." };
@@ -51,16 +52,27 @@ export async function signUpAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa los datos ingresados." };
 
   try {
-    const { error } = await getAuth().signUp.email({
+    const auth = getAuth();
+    const { data, error } = await auth.signUp.email({
       ...parsed.data,
       name: parsed.data.email.split("@")[0],
     });
     if (error) return { error: authErrorMessage(error) };
+    if (!data?.user.emailVerified) {
+      const { error: deliveryError } = await auth.emailOtp.sendVerificationOtp({
+        email: parsed.data.email,
+        type: "email-verification",
+      });
+      return {
+        verificationEmail: parsed.data.email,
+        error: deliveryError ? "No se pudo enviar el código. Pulsa Reenviar código para intentarlo de nuevo." : undefined,
+      };
+    }
   } catch {
     return { error: "No se pudo conectar con el servicio de autenticación. Intenta nuevamente." };
   }
 
-  return { verificationEmail: parsed.data.email };
+  redirect("/login?correo=confirmado");
 }
 
 export async function confirmEmailAction(
